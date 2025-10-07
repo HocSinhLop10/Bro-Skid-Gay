@@ -1,0 +1,1806 @@
+
+--[[
+
+ _   _    _   _   _____     _       ___     _   _   _   _   ____   
+| | | |  | | | | |_   _|   / \     / _ \   | | | | | | | | | __ )  
+| |_| |  | | | |   | |    / _ \   | | | |  | |_| | | | | | |  _ \  
+|  _  |  | | | |   | |   / ___ \  | |_| |  |  _  | | |_| | | |_) | 
+\_| |_/   \___/    \_/  /_/   \_\  \___/   \_| |_/  \___/  |____/
+
+                        Hutao Hub
+]]
+
+---------------------------------------------------------------------------------
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/SLK-gaming/Fluent/refs/heads/main/SaveManager.lua.txt"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/SLK-gaming/Fluent/refs/heads/main/InterfaceManager.lua.txt"))()
+
+local minimizeUI = Enum.KeyCode.RightAlt
+
+-- 🟢 Create Main UI
+local Window = Fluent:CreateWindow({
+    Title = "Hutao Hub [Free] | Break In 2",
+    SubTitle = "Version 1.0.0",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(480, 360),
+    Acrylic = false,
+    Theme = "Darker",
+    MinimizeKey = minimizeUI
+})
+
+-- 🧩 Add Logo inside a header frame in the TabHolder (fix overlap)
+task.spawn(function()
+    repeat task.wait() until Window and Window.TabHolder -- đợi Fluent load
+    local tabHolder = Window.TabHolder
+
+    -- nếu đã có header cũ thì xoá (tránh tạo 2 lần khi reload)
+    if tabHolder:FindFirstChild("HubHeader") then
+        tabHolder.HubHeader:Destroy()
+    end
+
+    -- Header frame sẽ nằm trên cùng của tab list (UIListLayout sẽ xếp các tab phía dưới)
+    local header = Instance.new("Frame")
+    header.Name = "HubHeader"
+    header.BackgroundTransparency = 1
+    header.Size = UDim2.new(1, 0, 0, 100) -- chỉnh kích cỡ khung hình
+    header.LayoutOrder = 0
+    header.Parent = tabHolder
+
+    -- Logo
+    local logo = Instance.new("ImageLabel")
+    logo.Name = "HubLogo"
+    logo.Image = "rbxassetid://121302760641013" -- đổi sang ID của bạn nếu muốn
+    logo.BackgroundTransparency = 1
+    logo.Size = UDim2.fromOffset(110, 110) -- kích thước logo
+    logo.Position = UDim2.new(0, 16, 0, -8) -- căn bên trái trong header
+    logo.AnchorPoint = Vector2.new(0, 0)
+    logo.Parent = header
+
+    -- (Không được xóa phần này)
+end)
+
+-- 📂 Tabs (rất quan trọng để script hoạt động)
+local Tabs = {
+    Role = Window:AddTab({ Title = "Role", Icon = "plus-circle" }),
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    Player = Window:AddTab({ Title = "Player", Icon = "box" }),
+    Teleport = Window:AddTab({ Title = "Teleport", Icon = "palmtree" }),
+    Item = Window:AddTab({ Title = "Item", Icon = "swords" }),
+ 	Misc = Window:AddTab({ Title = "Misc", Icon = "list-plus" }),
+    Settings = Window:AddTab({ Title = "Setting", Icon = "settings" }),
+}
+
+
+-- Tabs.Roles
+
+-----------------------------------------------------
+-- ⚙️ Logic Cần Thiết
+-----------------------------------------------------
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- 🔧 Hàm cấp role (Phone = Hacker / Book = Nerd)
+local function FireRole(item)
+    local remote = ReplicatedStorage:FindFirstChild("RemoteEvents")
+    if remote and remote:FindFirstChild("OutsideRole") then
+        remote.OutsideRole:FireServer(item, true, false)
+    else
+        warn("⚠ Không tìm thấy RemoteEvents.OutsideRole")
+    end
+end
+
+-- 💸 Auto collect tất cả Part có TouchInterest
+local function AutoCollectParts()
+    local count = 0
+    for _, v in ipairs(Workspace:GetChildren()) do
+        if v:IsA("BasePart") and v:FindFirstChild("TouchInterest") then
+            pcall(function()
+                firetouchinterest(v, LocalPlayer.Character.HumanoidRootPart, 0)
+                task.wait(0.05)
+                count += 1
+            end)
+        end
+    end
+    print("✅ Đã chạm vào " .. count .. " phần tử có TouchInterest.")
+end
+
+-----------------------------------------------------
+-- 🧩 Fluent UI Buttons
+-----------------------------------------------------
+
+-- 🟢 Free Hacker Role
+Tabs.Role:AddButton({
+    Title = "Free Hacker Role",
+    Callback = function()
+        FireRole("Phone")
+    end
+})
+
+-- 🟣 Free Nerd Kid Role
+Tabs.Role:AddButton({
+    Title = "Free Nerd Kid Role",
+    Callback = function()
+        FireRole("Book")
+    end
+})
+
+-- 🔵 Auto Collect Hidden Parts
+Tabs.Role:AddButton({
+    Title = "Collect Touch Parts",
+    Callback = function()
+        AutoCollectParts()
+    end
+})
+
+-- Tabs.Main
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+-- Logic Get Item + Power
+
+--// SERVICES
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local LP = Players.LocalPlayer
+local Events = ReplicatedStorage:WaitForChild("Events")
+
+--// CONFIG
+local SelectedItem = "Med Kit"
+local RemoveSlipping = false
+local SemiGodmode = false
+
+--// FUNCTIONS
+
+local function GiveItem(Item)
+    if Item == "Armor" then
+        Events:WaitForChild("Vending"):FireServer(3, "Armor2", "Armor", tostring(LP), 1)
+    elseif Item == "Crowbar 1" or Item == "Crowbar 2" or Item == "Bat" or Item == "Pitchfork" or Item == "Hammer" or Item == "Wrench" or Item == "Broom" then
+        Events.Vending:FireServer(3, tostring(Item:gsub(" ", "")), "Weapons", LP.Name, 1)
+    else
+        Events:WaitForChild("GiveTool"):FireServer(tostring(Item:gsub(" ", "")))
+    end
+end
+
+local function Train(stat)
+    Events:WaitForChild("RainbowWhatStat"):FireServer(stat)
+end
+
+local function HealYourself()
+    GiveItem("Pizza")
+    Events.Energy:FireServer(25, "Pizza")
+end
+
+local function BreakEnemies()
+    for _, folder in ipairs({"BadGuys", "BadGuysBoss", "BadGuysFront"}) do
+        for _, v in pairs(Workspace[folder]:GetChildren()) do
+            if v:FindFirstChild("Humanoid") then
+                v.Humanoid.Health = 0
+            end
+        end
+    end
+end
+
+local function KillEnemies()
+    for _, folder in ipairs({"BadGuys", "BadGuysBoss", "BadGuysFront"}) do
+        for _, v in pairs(Workspace[folder]:GetChildren()) do
+            Events:WaitForChild("HitBadguy"):FireServer(v, 64.8, 4)
+        end
+    end
+end
+
+    Tabs.Item:AddSection("↳ Get Item")
+
+--// === GUI INTEGRATION ===
+
+-- 🧰 Items Tab
+Tabs.Item:AddDropdown("SelectItem", {
+    Title = "Select Item",
+    Values = {
+		"Crowbar 1",
+		"Crowbar 2",
+		"Bat",
+		"Pitchfork",
+		"Hammer",
+		"Wrench",
+		"Broom",
+		"Armor",
+		"Med Kit",
+		"Key",
+		"Gold Key",
+		"Louise",
+		"Lollipop",
+		"Chips",
+		"Golden Apple",
+		"Pizza",
+		"Gold Pizza",
+		"Rainbow Pizza",
+		"Rainbow Pizza Box",
+		"Book",
+		"Phone",
+		"Cookie",
+		"Apple",
+		"Bloxy Cola",
+		"Expired Bloxy Cola",
+		"Bottle",
+		"Ladder",
+		"Battery"
+    },
+    Default = "Med Kit"
+}):OnChanged(function(Value)
+    SelectedItem = Value
+end)
+
+Tabs.Item:AddButton({
+    Title = "Get Selected Item",
+    Callback = function()
+        GiveItem(SelectedItem)
+    end
+})
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- 🧩 Breaking Blitz | NPC & Cash (Fluent UI Version)
+-- 🔧 Giữ logic cần thiết, không GUI Orion, không check game ID
+
+-- ⚙️ Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Events = ReplicatedStorage:WaitForChild("Events")
+
+-- ==========================
+-- 📦 FUNCTIONS
+-- ==========================
+
+local function TeleportTo(cf)
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		LocalPlayer.Character.HumanoidRootPart.CFrame = cf
+	end
+end
+
+local function GiveItem(item)
+	if Events:FindFirstChild("GiveTool") then
+		Events.GiveTool:FireServer(tostring(item:gsub(" ", "")))
+	end
+end
+
+local function GetDog()
+	for _, v in pairs(LocalPlayer.PlayerGui.Assets.Note.Note.Note:GetChildren()) do
+		if v.Name:match("Circle") and v.Visible == true then
+			GiveItem(v.Name:gsub("Circle", ""))
+			task.wait(0.1)
+			LocalPlayer.Backpack:WaitForChild(v.Name:gsub("Circle", "")).Parent = LocalPlayer.Character
+			TeleportTo(CFrame.new(-257.568, 29.45, -910.45))
+			task.wait(0.5)
+			Events:WaitForChild("CatFed"):FireServer(v.Name:gsub("Circle", ""))
+		end
+	end
+	task.wait(2)
+	for i = 1, 3 do
+		TeleportTo(CFrame.new(-203.533, 30.45, -790.901) + Vector3.new(0, 5, 0))
+		task.wait(0.1)
+	end
+end
+
+local function GetAgent()
+	GiveItem("Louise")
+	task.wait(0.1)
+	LocalPlayer.Backpack:WaitForChild("Louise").Parent = LocalPlayer.Character
+	Events:WaitForChild("LouiseGive"):FireServer(2)
+end
+
+local function GetUncle()
+	GiveItem("Key")
+	task.wait(0.1)
+	LocalPlayer.Backpack:WaitForChild("Key").Parent = LocalPlayer.Character
+	task.wait(0.5)
+	Events.KeyEvent:FireServer()
+end
+
+local function CollectCash()
+	for _, v in pairs(Workspace:GetChildren()) do
+		if v.Name == "Part" and v:FindFirstChild("TouchInterest") and v:FindFirstChild("Weld") and v.Transparency == 1 then
+			firetouchinterest(v, LocalPlayer.Character.HumanoidRootPart, 0)
+		end
+	end
+end
+
+-- ==========================
+-- 🧭 UI ELEMENTS (Fluent Style)
+-- ==========================
+
+-- 💵 Auto Collect Cash
+Tabs.Main:AddToggle("AutoCollectCash", {
+	Title = "Auto Collect Cash",
+	Default = false
+}):OnChanged(function(Value)
+	_G.AutoCollectCash = Value
+	task.spawn(function()
+		while _G.AutoCollectCash do
+			CollectCash()
+			task.wait(1)
+		end
+	end)
+end)
+
+Tabs.Main:AddSection("↳ Unlock NPC")
+
+-- 🟢 Get All NPCs
+Tabs.Main:AddButton({
+	Title = "Get All NPCs",
+	Callback = function()
+		task.spawn(function()
+			GetDog()
+			task.wait(5)
+			GetAgent()
+			task.wait(1)
+			GetUncle()
+		end)
+	end
+})
+
+-- 🐶 Get Dog
+Tabs.Main:AddButton({
+	Title = "Get Dog",
+	Callback = function()
+		task.spawn(GetDog)
+	end
+})
+
+-- 👮 Get Agent Bradley
+Tabs.Main:AddButton({
+	Title = "Get Agent Bradley",
+	Callback = function()
+		task.spawn(GetAgent)
+	end
+})
+
+-- 🧔 Get Uncle Pete
+Tabs.Main:AddButton({
+	Title = "Get Uncle Pete",
+	Callback = function()
+		task.spawn(GetUncle)
+	end
+})
+
+
+
+
+
+
+
+
+    Tabs.Main:AddSection("↳ Youself")
+
+-- ❤️ Heal Tab
+Tabs.Main:AddButton({
+    Title = "Heal Yourself",
+    Callback = function()
+        for i = 1, 10 do
+            HealYourself()
+        end
+    end
+})
+
+-- 🔁 Toggle Auto Heal Spam
+Tabs.Main:AddToggle("AutoHealSpam", {
+    Title = "Auto Heal Youself",
+    Default = false
+}):OnChanged(function(Value)
+    _G.AutoHealSpam = Value
+    if Value then
+        task.spawn(function()
+            while _G.AutoHealSpam do
+                HealYourself()
+                task.wait(0.25) -- delay giữa mỗi lần heal, chỉnh tùy tốc độ bạn muốn
+            end
+        end)
+    end
+end)
+
+
+
+    Tabs.Main:AddSection("↳ All Player")
+
+
+-- 🧩 Functions
+local Events = game:GetService("ReplicatedStorage"):WaitForChild("Events")
+local Player = game:GetService("Players").LocalPlayer
+
+local function HealAllPlayers()
+	pcall(function()
+		for _, v in pairs(Player.Character:GetChildren()) do
+			if v:IsA("Tool") then v.Parent = Player.Backpack end
+		end
+		task.wait(0.2)
+		Events:WaitForChild("GiveTool"):FireServer("GoldenApple")
+		task.wait(0.5)
+		Player.Backpack:WaitForChild("GoldenApple").Parent = Player.Character
+		task.wait(0.3)
+		Events:WaitForChild("HealTheNoobs"):FireServer()
+	end)
+end
+
+local function HealYourself()
+	pcall(function()
+		Events:WaitForChild("GiveTool"):FireServer("Pizza")
+		task.wait(0.3)
+		Events:WaitForChild("Energy"):FireServer(25, "Pizza")
+	end)
+end
+
+-- 💖 Heal All (nút chính)
+Tabs.Main:AddButton({
+	Title = "Heal All Players",
+	Callback = function()
+		HealAllPlayers()
+	end
+})
+
+-- 🔄 Heal All (toggle spam)
+Tabs.Main:AddToggle("LoopHealAll", {
+	Title = "Auto Heal All Players",
+	Default = false
+}):OnChanged(function(Value)
+	_G.HealAllLoop = Value
+	if Value then
+		task.spawn(function()
+			while _G.HealAllLoop do
+				HealAllPlayers()
+				task.wait(3)
+			end
+		end)
+	end
+end)
+
+-- Tabs.Player
+
+-- ⚙️ Training Tab
+Tabs.Player:AddButton({
+    Title = "Train Strength",
+    Callback = function()
+        Train("Strength")
+    end
+})
+
+Tabs.Player:AddButton({
+    Title = "Train Speed",
+    Callback = function()
+        Train("Speed")
+    end
+})
+
+
+
+
+    Tabs.Player:AddSection("↳ Cheats")
+
+
+-----------------------------------------------------
+-- ⚙️ Core Services
+-----------------------------------------------------
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-----------------------------------------------------
+-- 🔧 Variables
+-----------------------------------------------------
+local SemiGodmode = false
+local Damage = 5
+
+-----------------------------------------------------
+-- 💥 Core Functions
+-----------------------------------------------------
+
+-- 🩸 Gây sát thương cho bản thân
+local function TakeDamage(amount)
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum:TakeDamage(amount)
+    end
+end
+
+-- 🧠 Thông báo (tuỳ chỉnh lại nếu bạn dùng Fluent Notify riêng)
+local function Notify(title, msg, icon, time)
+    print(string.format("[%s] %s", title, msg))
+end
+
+-----------------------------------------------------
+-- 🧱 Fluent UI Elements
+-----------------------------------------------------
+
+-- 🧱 Toggle Semi Godmode (đúng Fluent)
+Tabs.Player:AddToggle("GodmodeToggle", {
+    Title = "Godmode",
+    Default = false
+}):OnChanged(function(Value)
+    SemiGodmode = Value
+    local state = SemiGodmode and "BẬT" or "TẮT"
+    Notify("Semi Godmode", "Trạng thái: " .. state, "rbxassetid://4483345998", 5)
+end)
+
+-- ⚙️ Slider chỉnh Damage (fix không hiện)
+Tabs.Player:AddSlider("DamageAmount", {
+    Title = "Damage Amount",
+    Min = 0,
+    Max = 200,
+    Default = Damage,
+    Rounding = 0, -- thêm để Fluent render chuẩn
+    Increment = 1,
+    ValueName = "Damage"
+}):OnChanged(function(Value)
+    Damage = Value
+end)
+
+-- 💥 Gây Damage cho chính mình (vẫn AddButton)
+Tabs.Player:AddButton({
+    Title = "Damage Yourself",
+    Callback = function()
+        if not SemiGodmode then
+            TakeDamage(Damage)
+            Notify("Damage", "Bạn vừa tự gây " .. Damage .. " sát thương cho bản thân!", "rbxassetid://4483345998", 5)
+        else
+            Notify("Warning", "Không thể tự gây damage khi Semi-Godmode đang bật!", "rbxassetid://4483345998", 5)
+        end
+    end
+})
+
+
+
+    Tabs.Player:AddSection("↳ Flying")
+
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- State
+local flying = false
+local flySpeed = 50
+local bodyVelocity, bodyGyro, renderConn
+
+-- Function: Start Flying
+local function startFlying()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoid = character:WaitForChild("Humanoid")
+	local HRP = character:WaitForChild("HumanoidRootPart")
+
+	local seat = humanoid.SeatPart
+	local attachPart = seat or HRP
+
+	-- Body movers
+	bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	bodyVelocity.Velocity = Vector3.zero
+	bodyVelocity.Parent = attachPart
+
+	bodyGyro = Instance.new("BodyGyro")
+	bodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+	bodyGyro.CFrame = attachPart.CFrame
+	bodyGyro.Parent = attachPart
+
+	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
+	-- Movement logic
+	renderConn = RunService.RenderStepped:Connect(function()
+		if attachPart and Camera then
+			local camCF = Camera.CFrame
+			local moveDir = humanoid.MoveDirection
+
+			local moveVec = Vector3.zero
+
+			if moveDir.Magnitude > 0 then
+				-- Dựng vector bay theo hướng nhìn
+				local forward = camCF.LookVector
+				local flatForward = Vector3.new(forward.X, 0, forward.Z).Unit
+				local verticalInfluence = forward.Unit.Y
+
+				-- Xác định xem đang đi tiến hay lùi
+				local movingForward = flatForward:Dot(moveDir.Unit) > 0.1
+				local movingBackward = flatForward:Dot(moveDir.Unit) < -0.1
+
+				local yVelocity = 0
+
+				-- Nếu đang đi tiến hoặc lùi, áp dụng hướng nhìn để tăng giảm độ cao
+				if movingForward then
+					yVelocity = verticalInfluence
+				elseif movingBackward then
+					yVelocity = -verticalInfluence
+				end
+
+				-- Kết hợp chuyển động ngang + dọc
+				moveVec = Vector3.new(moveDir.X, yVelocity, moveDir.Z).Unit
+			end
+
+			bodyVelocity.Velocity = moveVec * flySpeed
+			bodyGyro.CFrame = camCF
+		end
+	end)
+
+	flying = true
+end
+
+-- Function: Stop Flying
+local function stopFlying()
+	flying = false
+
+	if renderConn then renderConn:Disconnect() renderConn = nil end
+	if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+	if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
+
+	-- Fix: Khôi phục trạng thái nhân vật
+	local character = player.Character
+	if character then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end
+end
+
+-- Auto handle respawn
+Players.LocalPlayer.CharacterAdded:Connect(function()
+	if flying then
+		task.wait(1)
+		startFlying()
+	end
+end)
+
+-- UI Toggle
+local FlyToggle = Tabs.Player:AddToggle("FlyToggle", {
+	Title = "Fly Script",
+	Default = false
+})
+
+FlyToggle:OnChanged(function(Value)
+	if Value then
+		startFlying()
+	else
+		stopFlying()
+	end
+end)
+
+-- Speed slider
+Tabs.Player:AddSlider("FlySpeedSlider", {
+	Title = "Fly Speed",
+	Default = 50,
+	Min = 10,
+	Max = 300,
+	Rounding = 0,
+	Callback = function(Value)
+		flySpeed = Value
+	end
+})
+
+
+
+
+
+-- Tabs.Teleport
+
+
+
+    Tabs.Teleport:AddSection("↳ Npc's")
+
+
+
+-- 🧭 Teleport Menu (Full Fixed)
+-- Gộp cả NPC teleport và Location teleport — hỗ trợ Fluent UI
+
+-----------------------------------------------------
+-- 📦 Dịch vụ cơ bản
+-----------------------------------------------------
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-----------------------------------------------------
+-- ⚙️ Hàm Teleport an toàn
+-----------------------------------------------------
+local function TeleportTo(cf)
+    if not cf then
+        warn("⚠ Không có tọa độ để teleport!")
+        return
+    end
+
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then
+        warn("⚠ Nhân vật chưa sẵn sàng để teleport.")
+        return
+    end
+
+    pcall(function()
+        char:MoveTo(cf.Position)
+        task.wait(0.1)
+        char.HumanoidRootPart.CFrame = cf
+    end)
+end
+
+-----------------------------------------------------
+-- 🕐 Đợi Fluent UI load hoàn chỉnh
+-----------------------------------------------------
+repeat task.wait() until Tabs and Tabs.Teleport and typeof(Tabs.Teleport.AddDropdown) == "function"
+
+-----------------------------------------------------
+-- 🎯 TELEPORT 1: NPCs / Items
+-----------------------------------------------------
+local TeleportNPCs = {
+    ["Secret Agent Bradley"] = CFrame.new(-281.792053, 95.4500275, -790.556946),
+    ["Twando The Dog"]       = CFrame.new(-257.56839, 29.4499969, -910.452637),
+    ["Uncle Pete"]           = CFrame.new(-294.208923, 63.4182587, -737.712036),
+    ["Golden Crowbar"]       = CFrame.new(-147.337204, 29.4477005, -929.365295),
+    ["Purple Mask"]          = CFrame.new(102.560722, 29.2477055, -976.389954),
+    ["Homeless Kid"]         = CFrame.new(-79.4871826, 29.4477024, -932.782715),
+}
+
+local npcNames = {}
+for k in pairs(TeleportNPCs) do table.insert(npcNames, k) end
+local SelectedNPC
+
+local dropdownNPC = Tabs.Teleport:AddDropdown("TeleportNPC", {
+    Title = "Choose NPC",
+    Values = npcNames,
+    Multi = false,
+    Default = nil
+})
+
+dropdownNPC:OnChanged(function(Value)
+    SelectedNPC = Value
+    print("📍 Đã chọn NPC:", Value)
+end)
+
+Tabs.Teleport:AddButton({
+    Title = "Teleport To NPC",
+    Callback = function()
+        if not SelectedNPC then
+            Fluent:Notify({
+                Title = "⚠️ Lỗi",
+                Content = "Vui lòng chọn NPC trước khi teleport!",
+                Duration = 3
+            })
+            return
+        end
+
+        local cf = TeleportNPCs[SelectedNPC]
+        if cf then
+            TeleportTo(cf)
+            Fluent:Notify({
+                Title = "✅ Thành công",
+                Content = "Đã teleport tới " .. SelectedNPC,
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "❌ Lỗi",
+                Content = "Không tìm thấy tọa độ của " .. SelectedNPC,
+                Duration = 3
+            })
+        end
+    end
+})
+
+
+
+    Tabs.Teleport:AddSection("↳ Location")
+
+
+
+-----------------------------------------------------
+-- 🎯 TELEPORT 2: Location / Area
+-----------------------------------------------------
+local TeleportLocations = {
+    ["Boss Fight"] = CFrame.new(-1565.78772, -368.711945, -1040.66626),
+    ["Shop"] = CFrame.new(-246.653229, 30.4500484, -847.319275),
+    ["Kitchen"] = CFrame.new(-249.753555, 30.4500484, -732.703125),
+    ["Fighting Arena"] = CFrame.new(-255.521988, 62.7139359, -723.436035),
+    ["The Gym"] = CFrame.new(-256.477448, 63.4500465, -840.825562),
+    ["Golden Apple"] = CFrame.new(61.8781624, 29.4499969, -534.381165),
+    ["Feeding Instructions"] = CFrame.new(-207.885056, 60.4500465, -830.583557),
+    ["Middle Room"] = CFrame.new(-209.951859, 30.4590473, -789.723877),
+    ["Scarry Mary Pillar"] = CFrame.new(-1501.49597, -325.156891, -1060.63367),
+
+    ["Outside Loot"] = function()
+        local p = workspace:FindFirstChild("OutsideParts")
+        if p then
+            local part = p:FindFirstChildWhichIsA("Part", true)
+            if part then
+                return part.CFrame + Vector3.new(10, 0, 0)
+            end
+        end
+        return nil
+    end,
+
+    ["Experiment Room"] = function()
+        local desk = workspace:FindFirstChild("Final") and workspace.Final.Factory.RedDesk
+        if desk and desk:FindFirstChild("Drawer") then
+            local items = desk.Drawer:GetChildren()
+            if items[2] then
+                return items[2].CFrame + Vector3.new(20, 0, 0)
+            end
+        end
+        return nil
+    end,
+
+    ["Cafeteria"] = function()
+        local leg = workspace:FindFirstChild("Final") and workspace.Final.Factory:FindFirstChild("Legs", true)
+        if leg then
+            return leg.CFrame
+        end
+        return nil
+    end,
+
+    ["Rainbow Pizza Box"] = function()
+        local box = workspace:FindFirstChild("RainbowPizzaBox")
+        if box then
+            return box.CFrame
+        end
+        return nil
+    end
+}
+
+local locNames = {}
+for k in pairs(TeleportLocations) do table.insert(locNames, k) end
+local SelectedLocation
+
+local dropdownLoc = Tabs.Teleport:AddDropdown("TeleportLocation", {
+    Title = "Choose Location",
+    Values = locNames,
+    Multi = false,
+    Default = nil
+})
+
+dropdownLoc:OnChanged(function(Value)
+    SelectedLocation = Value
+    print("📍 Đã chọn Location:", Value)
+end)
+
+Tabs.Teleport:AddButton({
+    Title = "Teleport To Location",
+    Callback = function()
+        if not SelectedLocation then
+            Fluent:Notify({
+                Title = "⚠️ Lỗi",
+                Content = "Hãy chọn vị trí trước khi teleport!",
+                Duration = 3
+            })
+            return
+        end
+
+        local target = TeleportLocations[SelectedLocation]
+        local cf
+
+        if typeof(target) == "CFrame" then
+            cf = target
+        elseif typeof(target) == "function" then
+            local ok, result = pcall(target)
+            if ok and typeof(result) == "CFrame" then
+                cf = result
+            else
+                warn("❌ Không thể xác định vị trí động:", SelectedLocation)
+            end
+        end
+
+        if cf then
+            TeleportTo(cf)
+            Fluent:Notify({
+                Title = "✅ Thành công",
+                Content = "Đã teleport tới " .. SelectedLocation,
+                Duration = 3
+            })
+        else
+            Fluent:Notify({
+                Title = "❌ Lỗi",
+                Content = "Không thể teleport tới " .. tostring(SelectedLocation),
+                Duration = 3
+            })
+        end
+    end
+})
+
+
+
+
+-- Tabs.Item
+
+
+
+-- Tabs.Misc
+
+
+
+-- 🌐 Server Hop Button
+Tabs.Misc:AddButton({
+    Title = "Server Hop",
+    Callback = function()
+        local PlaceID = game.PlaceId
+        local AllIDs = {}
+        local foundAnything = ""
+        local actualHour = os.date("!*t").hour
+
+        -- Đọc file nếu có
+        local File = pcall(function()
+            AllIDs = game:GetService("HttpService"):JSONDecode(readfile("NotSameServers.json"))
+        end)
+
+        if not File then
+            table.insert(AllIDs, actualHour)
+            writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
+        end
+
+        local function TPReturner()
+            local Site
+            if foundAnything == "" then
+                Site = game.HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"
+                ))
+            else
+                Site = game.HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100&cursor=" .. foundAnything
+                ))
+            end
+
+            if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+                foundAnything = Site.nextPageCursor
+            end
+
+            local num = 0
+            for _, v in pairs(Site.data) do
+                local Possible, ID = true, tostring(v.id)
+                if tonumber(v.maxPlayers) > tonumber(v.playing) then
+                    for _, Existing in pairs(AllIDs) do
+                        if num ~= 0 then
+                            if ID == tostring(Existing) then
+                                Possible = false
+                            end
+                        else
+                            if tonumber(actualHour) ~= tonumber(Existing) then
+                                pcall(function()
+                                    delfile("NotSameServers.json")
+                                    AllIDs = {}
+                                    table.insert(AllIDs, actualHour)
+                                end)
+                            end
+                        end
+                        num = num + 1
+                    end
+                    if Possible then
+                        table.insert(AllIDs, ID)
+                        pcall(function()
+                            writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
+                            game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceID, ID, game.Players.LocalPlayer)
+                        end)
+                        task.wait(4)
+                    end
+                end
+            end
+        end
+
+        local function Teleport()
+            while task.wait() do
+                pcall(function()
+                    TPReturner()
+                    if foundAnything ~= "" then
+                        TPReturner()
+                    end
+                end)
+            end
+        end
+
+        -- Gọi để bắt đầu Server Hop
+        Teleport()
+    end
+})
+
+
+
+
+
+    Tabs.Misc:AddSection("↳ Fix Lag")
+
+-- SCRIPT GIẢM ĐỒ HỌA TỰ ĐỘNG MỖI 10 GIÂY (CÓ TOGGLE + RESTORE)
+-- Dán vào LocalScript (StarterPlayerScripts hoặc executor)
+-- Siêu Fix Lag cực mạnh giúp máy bạn mượt hơn 25% khi bật
+
+-- Lưu dữ liệu gốc
+local originalLighting = {}
+local originalParts = {}
+
+-- Hàm lưu Lighting gốc
+local function saveLighting()
+    originalLighting.QualityLevel = settings().Rendering.QualityLevel
+    originalLighting.GlobalShadows = game.Lighting.GlobalShadows
+    originalLighting.FogEnd = game.Lighting.FogEnd
+    originalLighting.Brightness = game.Lighting.Brightness
+    originalLighting.PostEffects = {}
+    for _, v in ipairs(game.Lighting:GetChildren()) do
+        if v:IsA("PostEffect") then
+            originalLighting.PostEffects[v] = v.Enabled
+        end
+    end
+end
+
+-- Hàm khôi phục Lighting
+local function restoreLighting()
+    if not originalLighting.QualityLevel then return end
+    settings().Rendering.QualityLevel = originalLighting.QualityLevel
+    game.Lighting.GlobalShadows = originalLighting.GlobalShadows
+    game.Lighting.FogEnd = originalLighting.FogEnd
+    game.Lighting.Brightness = originalLighting.Brightness
+    for effect, state in pairs(originalLighting.PostEffects) do
+        if effect and effect.Parent == game.Lighting then
+            effect.Enabled = state
+        end
+    end
+end
+
+-- Hàm giảm đồ họa triệt để
+local function simplifyModel(obj)
+    if obj:IsA("BasePart") then
+        if not originalParts[obj] then
+            originalParts[obj] = {
+                Material = obj.Material,
+                Color = obj.Color,
+                Reflectance = obj.Reflectance,
+                CastShadow = obj.CastShadow
+            }
+        end
+        obj.Material = Enum.Material.SmoothPlastic
+        obj.Color = Color3.fromRGB(163, 162, 165)
+        obj.Reflectance = 0
+        obj.CastShadow = false
+    elseif obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("SurfaceAppearance") then
+        obj:Destroy()
+    elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+        obj.Enabled = false
+    end
+end
+
+-- Hàm khôi phục BasePart
+local function restoreParts()
+    for part, data in pairs(originalParts) do
+        if part and part.Parent then
+            part.Material = data.Material
+            part.Color = data.Color
+            part.Reflectance = data.Reflectance
+            part.CastShadow = data.CastShadow
+        end
+    end
+    originalParts = {} -- reset
+end
+
+-- ==============================
+-- Toggle Auto Reduce (10s)
+-- ==============================
+local autoThread
+local connection
+
+local AutoReduceToggle = Tabs.Misc:AddToggle("AutoReduce", {
+    Title = "FPS Boost",
+    Default = false,
+    Callback = function(state)
+        if state then
+            print("🔄 Auto Reduce ON")
+
+            -- Lưu lighting gốc
+            saveLighting()
+
+            -- Giảm đồ họa lighting khi bật
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            game.Lighting.GlobalShadows = false
+            game.Lighting.FogEnd = 9e9
+            game.Lighting.Brightness = 1
+            for _, v in ipairs(game.Lighting:GetChildren()) do
+                if v:IsA("PostEffect") then
+                    v.Enabled = false
+                end
+            end
+
+            -- 🔥 Giảm ngay 1 lần đầu tiên
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                simplifyModel(obj)
+            end
+
+            -- Nếu có object spawn thêm thì cũng xử lý
+            connection = workspace.DescendantAdded:Connect(simplifyModel)
+
+            -- Sau đó auto lặp mỗi 10s
+            autoThread = task.spawn(function()
+                while AutoReduceToggle.Value do
+                    task.wait(10)
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        simplifyModel(obj)
+                    end
+                end
+            end)
+
+        else
+            print("⏹ Auto Reduce OFF")
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+
+            -- Khôi phục đồ họa gốc
+            restoreLighting()
+            restoreParts()
+            print("✅ Đã khôi phục đồ họa gốc")
+        end
+    end
+})
+
+
+
+-- 🧠 Anti-FPS Spike (Cưỡng chế 60FPS + Tự chống tăng bất thường)
+-- Giữ FPS luôn ổn định ở 60, ngăn vọt FPS gây đơ / giật game
+
+local RunService = game:GetService("RunService")
+
+Tabs.Misc:AddToggle("AntiFPSSpike", {
+    Title = "Unlock FPS V2",
+    Default = false
+}):OnChanged(function(Value)
+    _G.AntiFPSSpike = Value
+
+    if Value then
+        warn("[Anti-FPS Spike] ✅ Hệ thống cưỡng chế FPS = 60 đã bật.")
+
+        task.spawn(function()
+            local FORCE_FPS = 60          -- Luôn giữ 60 FPS
+            local SPIKE_THRESHOLD = 120   -- Nếu FPS vượt ngưỡng này thì chống spike
+            local MONITOR_INTERVAL = 1    -- Kiểm tra mỗi 1 giây
+
+            local frameCount = 0
+            local fps = 60
+
+            -- Hàm cưỡng chế FPS
+            local function forceCap()
+                if typeof(setfpscap) == "function" then
+                    setfpscap(FORCE_FPS)
+                end
+            end
+
+            -- Khóa ban đầu
+            forceCap()
+
+            -- Đếm FPS thực tế
+            RunService.RenderStepped:Connect(function()
+                if not _G.AntiFPSSpike then return end
+                frameCount += 1
+            end)
+
+            while _G.AntiFPSSpike and task.wait(MONITOR_INTERVAL) do
+                fps = frameCount / MONITOR_INTERVAL
+                frameCount = 0
+
+                -- Phát hiện FPS tăng bất thường
+                if fps > SPIKE_THRESHOLD then
+                    warn(string.format("[⚠️ Anti-FPS Spike]: FPS tăng bất thường (%d) → ổn định lại!", math.floor(fps)))
+                    forceCap()
+                    task.wait(0.5)
+                end
+
+                -- Bảo vệ tránh script khác đổi cap
+                if typeof(getfpscap) == "function" then
+                    local currentCap = getfpscap()
+                    if currentCap ~= FORCE_FPS then
+                        warn("[Anti-FPS Spike]: Phát hiện thay đổi FPS cap ngoài ý muốn → ép lại 60FPS.")
+                        forceCap()
+                    end
+                end
+            end
+
+            warn("[Anti-FPS Spike] ⛔ Hệ thống cưỡng chế FPS đã tắt.")
+        end)
+    else
+        warn("[Anti-FPS Spike] ❌ Đã tắt.")
+    end
+end)
+
+
+
+
+
+
+
+    Tabs.Misc:AddSection("↳ Show")
+
+-- FPS + Ping Drawing Setup
+local showFPS = true
+local showPing = true
+
+local fpsText = Drawing.new("Text")
+fpsText.Size = 16
+fpsText.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X - 100, 10)
+fpsText.Color = Color3.fromRGB(0, 255, 0)
+fpsText.Center = false
+fpsText.Outline = true
+fpsText.Visible = showFPS
+
+local msText = Drawing.new("Text")
+msText.Size = 16
+msText.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X - 100, 30)
+msText.Color = Color3.fromRGB(0, 255, 0)
+msText.Center = false
+msText.Outline = true
+msText.Visible = showPing
+
+local fpsCounter = 0
+local fpsLastUpdate = tick()
+
+RunService.RenderStepped:Connect(function()
+    fpsCounter += 1
+    if tick() - fpsLastUpdate >= 1 then
+        -- Update FPS
+        if showFPS then
+            fpsText.Text = "FPS: " .. tostring(fpsCounter)
+            fpsText.Visible = true
+        else
+            fpsText.Visible = false
+        end
+
+        -- Update Ping
+        if showPing then
+            local pingStat = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]
+            local ping = pingStat and math.floor(pingStat:GetValue()) or 0
+            msText.Text = "Ping: " .. ping .. " ms"
+
+            if ping <= 60 then
+                msText.Color = Color3.fromRGB(0, 255, 0)
+            elseif ping <= 120 then
+                msText.Color = Color3.fromRGB(255, 165, 0)
+            else
+                msText.Color = Color3.fromRGB(255, 0, 0)
+            end
+
+            msText.Visible = true
+        else
+            msText.Visible = false
+        end
+
+        fpsCounter = 0
+        fpsLastUpdate = tick()
+    end
+end)
+
+-- ✅ Fluent GUI Toggles chuẩn
+local fpsToggle = Tabs.Misc:AddToggle("ShowFPSToggle", {
+    Title = "Show FPS",
+    Default = true
+})
+fpsToggle:OnChanged(function(val)
+    showFPS = val
+    fpsText.Visible = val
+end)
+
+local pingToggle = Tabs.Misc:AddToggle("ShowPingToggle", {
+    Title = "Show Ping",
+    Default = true
+})
+pingToggle:OnChanged(function(val)
+    showPing = val
+    msText.Visible = val
+end)
+
+
+
+
+
+
+do
+-- LocalScript: Custom mirror of Roblox chat (view + send + collapse)
+-- Place in StarterPlayerScripts or StarterGui
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TextChatService = game:GetService("TextChatService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- === CONFIG ===
+local USE_RICHTEXT = true
+
+-- === ScreenGui ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomChatGUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- === Frame chính ===
+local chatFrame = Instance.new("Frame")
+chatFrame.Name = "ChatFrame"
+chatFrame.Size = UDim2.fromScale(0.32, 0.42)
+chatFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+chatFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+chatFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+chatFrame.BackgroundTransparency = 0.25
+chatFrame.BorderSizePixel = 0
+chatFrame.Active = true
+chatFrame.ClipsDescendants = true
+chatFrame.Parent = screenGui
+
+local sizeConstraint = Instance.new("UISizeConstraint")
+sizeConstraint.MaxSize = Vector2.new(660, 480)
+sizeConstraint.MinSize = Vector2.new(260, 32) -- khi thu gọn chỉ cần title
+sizeConstraint.Parent = chatFrame
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 12)
+uiCorner.Parent = chatFrame
+
+-- === Thanh tiêu đề ===
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 28)
+titleBar.BackgroundTransparency = 1
+titleBar.Parent = chatFrame
+
+local title = Instance.new("TextLabel")
+title.BackgroundTransparency = 1
+title.Size = UDim2.new(1, -40, 1, 0) -- chừa chỗ cho nút thu gọn
+title.Position = UDim2.new(0, 6, 0, 0)
+title.Font = Enum.Font.SourceSansSemibold
+title.TextSize = 18
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.TextColor3 = Color3.fromRGB(240, 240, 240)
+title.Text = "Khung chat ảo"
+title.Parent = titleBar
+
+-- Nút thu gọn
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleBtn"
+toggleBtn.Size = UDim2.new(0, 28, 0, 24)
+toggleBtn.Position = UDim2.new(1, -32, 0.5, -12)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+toggleBtn.Text = "-"
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextSize = 20
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Parent = titleBar
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleBtn
+
+-- Viền mỏng
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 1
+stroke.Transparency = 0.6
+stroke.Color = Color3.fromRGB(255,255,255)
+stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+stroke.Parent = chatFrame
+
+-- === ScrollingFrame ===
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "Messages"
+scroll.Size = UDim2.new(1, -10, 1, -72)
+scroll.Position = UDim2.new(0, 5, 0, 34)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 6
+scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.CanvasSize = UDim2.new(0,0,0,0)
+scroll.Parent = chatFrame
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 4)
+padding.PaddingBottom = UDim.new(0, 6)
+padding.PaddingLeft = UDim.new(0, 6)
+padding.PaddingRight = UDim.new(0, 6)
+padding.Parent = scroll
+
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 4)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = scroll
+
+layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 8)
+end)
+
+-- === Input bar ===
+local inputBar = Instance.new("Frame")
+inputBar.Name = "InputBar"
+inputBar.Size = UDim2.new(1, -10, 0, 32)
+inputBar.Position = UDim2.new(0, 5, 1, -36)
+inputBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+inputBar.BackgroundTransparency = 0.2
+inputBar.BorderSizePixel = 0
+inputBar.Parent = chatFrame
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 8)
+inputCorner.Parent = inputBar
+
+local textBox = Instance.new("TextBox")
+textBox.Name = "ChatInput"
+textBox.Size = UDim2.new(1, -50, 1, 0)
+textBox.Position = UDim2.new(0, 6, 0, 0)
+textBox.BackgroundTransparency = 1
+textBox.Font = Enum.Font.SourceSans
+textBox.TextSize = 18
+textBox.TextXAlignment = Enum.TextXAlignment.Left
+textBox.PlaceholderText = "Nhập tin nhắn..."
+textBox.TextColor3 = Color3.fromRGB(255,255,255)
+textBox.Parent = inputBar
+
+local sendBtn = Instance.new("TextButton")
+sendBtn.Name = "SendBtn"
+sendBtn.Size = UDim2.new(0, 44, 1, 0)
+sendBtn.Position = UDim2.new(1, -44, 0, 0)
+sendBtn.BackgroundColor3 = Color3.fromRGB(50, 120, 255)
+sendBtn.Text = "➤"
+sendBtn.Font = Enum.Font.SourceSansBold
+sendBtn.TextSize = 20
+sendBtn.TextColor3 = Color3.fromRGB(255,255,255)
+sendBtn.Parent = inputBar
+
+local sendCorner = Instance.new("UICorner")
+sendCorner.CornerRadius = UDim.new(0, 8)
+sendCorner.Parent = sendBtn
+
+-- === Collapse logic ===
+local collapsed = false
+local fullHeight = chatFrame.Size -- lưu size gốc
+
+toggleBtn.MouseButton1Click:Connect(function()
+	collapsed = not collapsed
+	if collapsed then
+		scroll.Visible = false
+		inputBar.Visible = false
+		chatFrame.Size = UDim2.new(chatFrame.Size.X.Scale, chatFrame.Size.X.Offset, 0, 32)
+		toggleBtn.Text = "+"
+	else
+		scroll.Visible = true
+		inputBar.Visible = true
+		chatFrame.Size = fullHeight
+		toggleBtn.Text = "-"
+	end
+end)
+
+-- === Helper: strip tag ===
+local function stripTags(str)
+	return (str:gsub("<[^>]->", ""))
+end
+
+-- === Add message ===
+local function addMessage(text, speaker)
+	local msg = Instance.new("TextLabel")
+	msg.Name = "Msg"
+	msg.BackgroundTransparency = 1
+	msg.TextXAlignment = Enum.TextXAlignment.Left
+	msg.TextWrapped = true
+	msg.RichText = USE_RICHTEXT
+	msg.Font = Enum.Font.SourceSans
+	msg.TextSize = 18
+	msg.TextColor3 = Color3.fromRGB(255, 255, 255)
+	msg.AutomaticSize = Enum.AutomaticSize.Y
+	msg.Size = UDim2.new(1, 0, 0, 0)
+
+	if not USE_RICHTEXT then
+		text = stripTags(text or "")
+	end
+
+	msg.Text = string.format("[%s]: %s", speaker or "Hệ thống", text or "")
+	msg.Parent = scroll
+
+	task.defer(function()
+		scroll.CanvasPosition = Vector2.new(0, 1e7)
+	end)
+end
+
+-- === Kéo/thả ===
+do
+	local dragging, dragInput, dragStart, startPos
+	local function update(input)
+		local delta = input.Position - dragStart
+		chatFrame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+	titleBar.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = chatFrame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+	titleBar.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input == dragInput then
+			update(input)
+		end
+	end)
+end
+
+-- === Nhận chat ===
+local function hookTextChatService()
+	TextChatService.MessageReceived:Connect(function(message)
+		local text = message and message.Text or ""
+		local speaker = "Hệ thống"
+		if message then
+			if message.PrefixText and #message.PrefixText > 0 then
+				speaker = message.PrefixText:gsub(":%s*$","")
+			elseif message.TextSource then
+				local p = Players:GetPlayerByUserId(message.TextSource.UserId)
+				speaker = (p and p.DisplayName) or "Người chơi"
+			end
+		end
+		addMessage(text, speaker)
+	end)
+end
+
+local function hookLegacyChat()
+	local chatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+	if not chatEvents then return end
+	local onMsg = chatEvents:FindFirstChild("OnMessageDoneFiltering")
+	if not onMsg then return end
+	onMsg.OnClientEvent:Connect(function(data)
+		addMessage(data.Message, data.FromSpeaker or "Hệ thống")
+	end)
+end
+
+-- === Gửi chat ===
+local function sendChat(text)
+	if not text or text == "" then return end
+	if TextChatService and TextChatService.ChatInputBarConfiguration then
+		local channel = TextChatService.ChatInputBarConfiguration.TargetTextChannel
+		if channel then
+			channel:SendAsync(text)
+			return
+		end
+	end
+	local chatEvents = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+	if chatEvents then
+		local sayMsg = chatEvents:FindFirstChild("SayMessageRequest")
+		if sayMsg then
+			sayMsg:FireServer(text, "All")
+			return
+		end
+	end
+end
+
+sendBtn.MouseButton1Click:Connect(function()
+	sendChat(textBox.Text)
+	textBox.Text = ""
+end)
+textBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		sendChat(textBox.Text)
+		textBox.Text = ""
+	end
+end)
+
+-- Hook
+local okNew = false
+pcall(function()
+	if TextChatService and TextChatService.MessageReceived then
+		okNew = true
+		hookTextChatService()
+	end
+end)
+if not okNew then
+	hookLegacyChat()
+end
+
+-- === 📌 Toggle Fluent UI để ẩn/hiện GUI chat ===
+Tabs.Misc:AddToggle("CustomChatToggle", {
+	Title = "Show Chat",
+	Default = false,
+}):OnChanged(function(enabled)
+	if screenGui then
+		screenGui.Enabled = enabled
+	end
+end)
+end
+
+-- Tabs.Settings
+
+
+
+local AexecToggle = Tabs.Settings:AddToggle("AexecToggle", {Title = "Auto Execute", Default = false })
+AexecToggle:OnChanged(function(Value)
+    if Value then
+        task.spawn(function()
+            pcall(function()
+                if queue_on_teleport then
+                    local HutaoHubScript1 = [[
+task.wait(3)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/hdksakst-ship-it/Hutao-Hub-Omega-X/refs/heads/main/Forsaken-v3.txt"))()
+]]
+                    queue_on_teleport(HutaoHubScript1)
+                end
+            end)
+        end)
+        Fluent:Notify({
+            Title = "Hutao HUB",
+            Content = "Auto execute is enabled!",
+            Duration = 5
+        })
+    else
+        Fluent:Notify({
+            Title = "Hutao HUB",
+            Content = "Auto execute is disabled!",
+            Duration = 5
+        })
+    end
+end)
+
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+-- Ignore keys that are used by ThemeManager.
+-- (we dont want configs to save themes, do we?)
+SaveManager:IgnoreThemeSettings()
+
+-- You can add indexes of elements the save manager should ignore
+SaveManager:SetIgnoreIndexes({})
+
+-- use case for doing it this way:
+-- a script hub could have themes in a global folder
+-- and game configs in a separate folder per game
+InterfaceManager:SetFolder("Hutao HUB")
+SaveManager:SetFolder("Hutao HUB/Break In 2")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Select First Tab By Default
+Window:SelectTab(1)
+
+Fluent:Notify({ Title = "Hutao HUB", Content = "Break In 2 script loaded successfully!", Duration = 5 })
+SaveManager:LoadAutoloadConfig()
+
+
+-- 🟢 DRAGGABLE UI BUTTON WITH ENHANCED CLICK AND HOVER ANIMATIONS
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- Xóa nếu có UI minimize cũ
+local ExistingUI = CoreGui:FindFirstChild("HutaoHubMinimizeUI")
+if ExistingUI then
+    ExistingUI:Destroy()
+end
+
+-- Create Floating UI
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "HutaoHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+DragUI.Parent = CoreGui
+
+-- Create Circular Button
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.ClipsDescendants = true
+Button.Image = "rbxassetid://90508203972003" -- Thay icon nếu muốn
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+-- Make UI Circular
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+-- Tween Info for Animations
+local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+-- 🟢 Toggle Fluent UI trực tiếp
+local function ToggleUI()
+    if Window.Minimized then
+        Window:Minimize(false) -- mở lại
+    else
+        Window:Minimize(true) -- thu nhỏ
+    end
+end
+
+-- Click Animation & UI Toggle
+local isDragging = false
+local dragThreshold = 10
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then return end
+
+    -- Click animation
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(0, 45, 0, 45),
+        Rotation = 5
+    }):Play()
+    task.wait(0.1)
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 50, 0, 50),
+        Rotation = 0
+    }):Play()
+
+    ToggleUI()
+end)
+
+-- Hover Animation
+Button.MouseEnter:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
+
+Button.MouseLeave:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+-- Dragging Logic for PC & Mobile
+local dragging, dragStart, startPos
+
+local function StartDrag(input)
+    isDragging = false
+    dragging = true
+    dragStart = input.Position
+    startPos = Button.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+local function OnDrag(input)
+    if dragging then
+        local delta = (input.Position - dragStart).Magnitude
+        if delta > dragThreshold then
+            isDragging = true
+        end
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + (input.Position.X - dragStart.X),
+            startPos.Y.Scale,
+            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+        )
+    end
+end
+
+-- Dragging Support
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        OnDrag(input)
+    end
+end)
