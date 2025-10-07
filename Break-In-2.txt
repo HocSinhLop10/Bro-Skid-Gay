@@ -1634,7 +1634,7 @@ AexecToggle:OnChanged(function(Value)
                 if queue_on_teleport then
                     local HutaoHubScript1 = [[
 task.wait(3)
-loadstring(game:HttpGet("https://raw.githubusercontent.com/hdksakst-ship-it/Hutao-Hub-Omega-X/refs/heads/main/Forsaken-v3.txt"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/HocSinhLop10/Bro-Skid-Gay/refs/heads/main/Break-In-2.txt"))()
 ]]
                     queue_on_teleport(HutaoHubScript1)
                 end
