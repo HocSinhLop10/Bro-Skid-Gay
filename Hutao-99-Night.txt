@@ -1,0 +1,1699 @@
+local redzlib = loadstring(game:HttpGet("https://raw.githubusercontent.com/SLK-gaming/New-Gui/refs/heads/main/New-Redz.lua"))()
+
+local Window = redzlib:MakeWindow({
+  Title = "Hutao Hub [Free]",
+  SubTitle = "by SLK Gaming",
+  SaveFolder = "Hutao Hub - 99 Night.lua"
+})
+
+Window:AddMinimizeButton({
+    Button = { Image = "rbxassetid://90508203972003", BackgroundTransparency = 0 },
+    Corner = { CornerRadius = UDim.new(0, 5) },
+})
+
+local TabDiscord = Window:MakeTab({"Discord", "info"})
+
+local TabMain = Window:MakeTab({"Main", "home"})
+
+local TabFarm = Window:MakeTab({"Farm", "gem"})
+
+local TabItem = Window:MakeTab({"Items", "swords"})
+
+local TabTeleport = Window:MakeTab({"Teleport", "locate"})
+
+local TabVisual = Window:MakeTab({"Visual", "user"})
+
+local TabMisc = Window:MakeTab({"Misc", "menu"})
+
+local TabSettings = Window:MakeTab({"Settings", "settings"})
+
+---------------------------------------------------------------------------------
+-- Tổng Hợp Logic
+---------------------------------------------------------------------------------
+
+local scan_map = false
+
+local killAuraToggle = false
+local chopAuraToggle = false
+local auraRadius = 50
+local currentammount = 0
+
+local toolsDamageIDs = {
+    ["Old Axe"] = "3_7367831688",
+    ["Good Axe"] = "112_7367831688",
+    ["Strong Axe"] = "116_7367831688",
+    ["Ice Axe"] = "116_7367831688",
+    ["Admin Axe"] = "116_7367831688",
+    ["Morningstar"] = "116_7367831688",
+    ["Laser Sword"] = "116_7367831688",
+    ["Ice Sword"] = "116_7367831688",
+    ["Katana"] = "116_7367831688",
+    ["Trident"] = "116_7367831688",
+    ["Poison Spear"] = "116_7367831688",
+    ["Chainsaw"] = "647_8992824875",
+    ["Spear"] = "196_8999010016"
+}
+
+-- auto food
+
+local autoFeedToggle = false
+local selectedFood = {}
+local hungerThreshold = 75
+local alwaysFeedEnabledItems = {}
+local alimentos = {
+    "Apple",
+    "Berry",
+    "Carrot",
+    "Cake",
+    "Chili",
+	"Cooked Clownfish", 
+	"Cooked Swordfish", 
+	"Cooked Jellyfish", 
+	"Cooked Char", 
+	"Cooked Eel", 
+	"Cooked Shark"
+    "Cooked Ribs",
+    "Cooked Mackerel",
+    "Cooked Salmon",
+    "Cooked Morsel",
+    "Cooked Steak"
+}
+
+-- esp
+
+local ie = {
+    "Bandage", "Bolt", "Broken Fan", "Broken Microwave", "Cake", "Carrot", "Chair", "Coal", "Coin Stack",
+    "Cooked Morsel", "Cooked Steak", "Fuel Canister", "Iron Body", "Leather Armor", "Log", "MadKit", "Metal Chair",
+    "MedKit", "Old Car Engine", "Old Flashlight", "Old Radio", "Revolver", "Revolver Ammo", "Rifle", "Rifle Ammo",
+    "Morsel", "Sheet Metal", "Steak", "Tyre", "Washing Machine", "Cultist Gem", "Gem of the Forest Fragment", "Frozen Shuriken",
+	"Tactical Shotgun", "Snowball", "Kunai"
+}
+local me = {"Bunny", "Wolf", "Alpha Wolf", "Bear", "Crossbow Cultist", "Alien", "Alien Elite", "Polar Bear", "Arctic Fox", "Mammoth", "Cultist", "Cultist Melee", "Cultist Crossbow", "Cultist Juggernaut"}
+
+-- bring
+local BlueprintItems = {"Crafting Blueprint", "Defense Blueprint", "Furniture Blueprint"}
+local selectedBlueprintItems = {}
+local PeltsItems = {"Bunny Foot", "Wolf Pelt", "Alpha Wolf Pelt", "Bear Pelt", "Arctic Fox Pelt", "Polar Bear Pelt"}
+local selectedPeltsItems = {}
+local junkItems = {"Bolt", "Sheet Metal", "UFO Junk", "UFO Component", "Broken Fan", "Old Radio", "Broken Microwave", "Tyre", "Metal Chair", "Old Car Engine", "Washing Machine", "Cultist Experiment", "Cultist Prototype", "UFO Scrap", "Cultist Gem", "Gem of the Forest Fragment", "Feather", "Old Boot"}
+local selectedJunkItems = {}
+local fuelItems = {"Log", "Chair", "Coal", "Fuel Canister", "Oil Barrel"}
+local selectedFuelItems = {}
+local foodItems = {"Cake", "Cooked Steak", "Cooked Morsel", "Ribs", "Salmon", "Cooked Salmon", "Cooked Ribs", "Mackerel", "Cooked Mackerel", "Steak", "Morsel", "Berry", "Carrot", "Stew", "Hearty Stew", "Corn", "Pumpkin", "Meat? Sandwich", "Pumpkin", "Seafood Chowder", "Steak Dinner", "Pumpkin Soup", "BBQ Ribs", "Carrot Cake", "Jar o’ Jelly", "Mackerel", "Salmon", "Clownfish", "Swordfish", "Jellyfish", "Char", "Eel", "Shark"	"Cooked Clownfish", "Cooked Swordfish", "Cooked Jellyfish", "Cooked Char", "Cooked Eel", "Cooked Shark"}
+local selectedFoodItems = {}
+local medicalItems = {"Bandage", "MedKit"}
+local selectedMedicalItems = {}
+local equipmentItems = {"Revolver", "Rifle", "Revolver Ammo", "Rifle Ammo", "Giant Sack", "Good Sack", "Strong Axe", "Good Axe", "Frozen Shuriken", "Tactical Shotgun", "Snowball", "Kunai", "Leather Body", "Poison Armour", "Iron Body", "Thorn Body", "Riot Shield", "Alien Armour", "Red Key", "Blue Key", "Yellow Key", "Grey Key", "Frog Key", "Chili Seeds", "Flower Seeds", "Berry Seeds", "Firefly Seeds", "Old Rod", "Good Rod", "Strong Rod"}
+local selectedEquipmentItems = {}
+
+local isCollecting = false
+local originalPosition = nil
+local autoBringEnabled = false
+
+-- Toggle states for each category
+local BlueprintToggleEnabled = false
+local PeltsToggleEnabled = false
+local junkToggleEnabled = false
+local fuelToggleEnabled = false
+local foodToggleEnabled = false
+local medicalToggleEnabled = false
+local equipmentToggleEnabled = false
+
+-- Loop control variables to properly stop threads
+local BlueprintLoopRunning = false
+local PeltsLoopRunning = false
+local junkLoopRunning = false
+local fuelLoopRunning = false
+local foodLoopRunning = false
+local medicalLoopRunning = false
+local equipmentLoopRunning = false
+
+-- Enhanced smooth pulling movement with easing
+local function smoothPullToItem(startPos, endPos, duration)
+    local player = game.Players.LocalPlayer
+    local hrp = player.Character.HumanoidRootPart
+    
+    local startTime = tick()
+    local distance = (endPos.Position - startPos.Position).Magnitude
+    local direction = (endPos.Position - startPos.Position).Unit
+    
+    -- Create smooth pulling effect with easing
+    spawn(function()
+        while tick() - startTime < duration do
+            local elapsed = tick() - startTime
+            local progress = elapsed / duration
+            
+            -- Ease-in-out function for smooth acceleration and deceleration
+            local easedProgress = progress < 0.5 
+                and 2 * progress * progress 
+                or 1 - math.pow(-2 * progress + 2, 2) / 2
+            
+            local currentPos = startPos.Position:lerp(endPos.Position, easedProgress)
+            local lookDirection = endPos.Position - currentPos
+            
+            if lookDirection.Magnitude > 0 then
+                hrp.CFrame = CFrame.lookAt(currentPos, currentPos + lookDirection.Unit)
+            else
+                hrp.CFrame = CFrame.new(currentPos)
+            end
+            
+            wait()
+        end
+        
+        -- Ensure exact final position
+        hrp.CFrame = endPos
+    end)
+    
+    wait(duration)
+end
+
+-- Enhanced item pulling effect
+local function createItemPullEffect(itemPart, targetPos, duration)
+    if not itemPart or not itemPart.Parent then return end
+    
+    local startPos = itemPart.Position
+    local startTime = tick()
+    
+    spawn(function()
+        while tick() - startTime < duration do
+            if not itemPart or not itemPart.Parent then break end
+            
+            local elapsed = tick() - startTime
+            local progress = elapsed / duration
+            
+            -- Ease-out effect for item pulling
+            local easedProgress = 1 - math.pow(1 - progress, 3)
+            
+            local currentPos = Vector3.new(
+                startPos.X + (targetPos.X - startPos.X) * easedProgress,
+                startPos.Y + (targetPos.Y - startPos.Y) * easedProgress,
+                startPos.Z + (targetPos.Z - startPos.Z) * easedProgress
+            )
+            
+            pcall(function()
+                itemPart.CFrame = CFrame.new(currentPos)
+                itemPart.Velocity = Vector3.new(0, 0, 0)
+                itemPart.AngularVelocity = Vector3.new(0, 0, 0)
+            end)
+            
+            wait()
+        end
+        
+        -- Final position
+        pcall(function()
+            itemPart.CFrame = CFrame.new(targetPos)
+            itemPart.Velocity = Vector3.new(0, 0, 0)
+            itemPart.AngularVelocity = Vector3.new(0, 0, 0)
+        end)
+    end)
+    
+    wait(duration)
+end
+
+-- Enhanced bypass system with smooth pulling (no noclip)
+local function bypassBringSystem(items, stopFlag)
+    if isCollecting then 
+        return 
+    end
+    
+    isCollecting = true
+    local player = game.Players.LocalPlayer
+    
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then 
+        isCollecting = false
+        return 
+    end
+    
+    local hrp = player.Character.HumanoidRootPart
+    originalPosition = hrp.CFrame
+    
+    for _, itemName in ipairs(items) do
+        -- Check if we should stop
+        if stopFlag and not stopFlag() then
+            break
+        end
+        
+        local itemsFound = {}
+        
+        -- Find all items with this name
+        for _, item in ipairs(workspace:GetDescendants()) do
+            if item.Name == itemName and (item:IsA("BasePart") or item:IsA("Model")) then
+                local itemPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
+                if itemPart and itemPart.Parent ~= player.Character then
+                    table.insert(itemsFound, {item = item, part = itemPart})
+                end
+            end
+        end
+        
+        -- Process each found item
+        for _, itemData in ipairs(itemsFound) do
+            -- Check if we should stop again
+            if stopFlag and not stopFlag() then
+                break
+            end
+            
+            local item = itemData.item
+            local itemPart = itemData.part
+            
+            if itemPart and itemPart.Parent then
+                -- Step 1: Smooth pull to item location with anticipation
+                local itemPos = itemPart.CFrame + Vector3.new(0, 5, 0)
+                smoothPullToItem(hrp.CFrame, itemPos, 1.2) -- Smooth 1.2 second pull
+                
+                -- Step 2: Create magnetic pull effect for item
+                local playerPos = hrp.Position + Vector3.new(0, -1, 0)
+                createItemPullEffect(itemPart, playerPos, 0.8)
+                
+                -- Step 3: Smooth return journey with item following
+                local keepAttached = true
+                spawn(function()
+                    while keepAttached do
+                        if stopFlag and not stopFlag() then
+                            keepAttached = false
+                            break
+                        end
+                        
+                        if itemPart and itemPart.Parent and hrp and hrp.Parent then
+                            pcall(function()
+                                local offset = Vector3.new(
+                                    math.sin(tick() * 2) * 0.5, -- Slight floating motion
+                                    -1 + math.cos(tick() * 3) * 0.2,
+                                    math.cos(tick() * 2) * 0.5
+                                )
+                                itemPart.CFrame = CFrame.new(hrp.Position + offset)
+                                itemPart.Velocity = Vector3.new(0, 0, 0)
+                                itemPart.AngularVelocity = Vector3.new(0, 0, 0)
+                            end)
+                        end
+                        wait(0.03)
+                    end
+                end)
+                
+                -- Smooth return to original position
+                smoothPullToItem(hrp.CFrame, originalPosition, 1.0)
+                
+                -- Stop attachment and place item nearby with gentle landing
+                keepAttached = false
+                wait(0.1)
+                
+                pcall(function()
+                    local landingPos = originalPosition.Position + Vector3.new(
+                        math.random(-4, 4), 
+                        2, 
+                        math.random(-4, 4)
+                    )
+                    
+                    -- Gentle item placement
+                    createItemPullEffect(itemPart, landingPos, 0.5)
+                end)
+            end
+            
+            wait(0.5) -- Pause between items
+        end
+    end
+    
+    -- Ensure player is at original position
+    if originalPosition then
+        hrp.CFrame = originalPosition
+    end
+    
+    isCollecting = false
+end
+
+-- auto upgrade campfire
+
+local campfireFuelItems = {"Log", "Coal", "Chair", "Fuel Canister", "Oil Barrel", "Biofuel"}
+local campfireDropPos = Vector3.new(0, 19, 0)
+local selectedCampfireItem = nil -- Single item storage
+local autoUpgradeCampfireEnabled = false
+
+-- Added New
+local scrapjunkItems = {"Log", "Chair", "Tyre", "Bolt", "Broken Fan", "Broken Microwave", "Sheet Metal", "Old Radio", "Washing Machine", "Old Car Engine", "Cultist Gem", "Gem of the Forest Fragment"}
+local autoScrapPos = Vector3.new(21, 20, -5)
+local selectedScrapItem = nil
+local autoScrapItemsEnabled = false
+-- auto cook
+
+local autocookItems = {"Morsel", "Steak", "Ribs", "Salmon", "Mackerel"}
+local autoCookEnabledItems = {}
+local autoCookEnabled = false
+
+local function getAnyToolWithDamageID(isChopAura)
+    for toolName, damageID in pairs(toolsDamageIDs) do
+        if isChopAura and toolName ~= "Old Axe" and toolName ~= "Good Axe" and toolName ~= "Strong Axe" and toolName ~= "Ice Axe" and toolName ~= "Chainsaw" then
+            continue
+        end
+        local tool = LocalPlayer:FindFirstChild("Inventory") and LocalPlayer.Inventory:FindFirstChild(toolName)
+        if tool then
+            return tool, damageID
+        end
+    end
+    return nil, nil
+end
+
+local function equipTool(tool)
+    if tool then
+        ReplicatedStorage:WaitForChild("RemoteEvents").EquipItemHandle:FireServer("FireAllClients", tool)
+    end
+end
+
+local function unequipTool(tool)
+    if tool then
+        ReplicatedStorage:WaitForChild("RemoteEvents").UnequipItemHandle:FireServer("FireAllClients", tool)
+    end
+end
+
+local function killAuraLoop()
+    while killAuraToggle do
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local tool, damageID = getAnyToolWithDamageID(false)
+            if tool and damageID then
+                equipTool(tool)
+                for _, mob in ipairs(Workspace.Characters:GetChildren()) do
+                    if mob:IsA("Model") then
+                        local part = mob:FindFirstChildWhichIsA("BasePart")
+                        if part and (part.Position - hrp.Position).Magnitude <= auraRadius then
+                            pcall(function()
+                                ReplicatedStorage:WaitForChild("RemoteEvents").ToolDamageObject:InvokeServer(
+                                    mob,
+                                    tool,
+                                    damageID,
+                                    CFrame.new(part.Position)
+                                )
+                            end)
+                        end
+                    end
+                end
+                task.wait(0.1)
+            else
+                task.wait(1)
+            end
+        else
+            task.wait(0.5)
+        end
+    end
+end
+
+local AutoPlantToggle = false
+
+local function autoplant()
+    while AutoPlantToggle do
+        local args = {
+            Instance.new("Model"),
+            Vector3.new(-41.2053, 1.0633, 29.2236)
+        }
+        game:GetService("ReplicatedStorage")
+            :WaitForChild("RemoteEvents")
+            :WaitForChild("RequestPlantItem")
+            :InvokeServer(unpack(args))
+        task.wait(1)
+    end
+end
+
+local function chopAuraLoop()
+    while chopAuraToggle do
+        local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local tool, baseDamageID = getAnyToolWithDamageID(true)
+            if tool and baseDamageID then
+                equipTool(tool)
+                currentammount = currentammount + 1
+                local trees = {}
+                local map = Workspace:FindFirstChild("Map")
+                if map then
+                    if map:FindFirstChild("Foliage") then
+                        for _, obj in ipairs(map.Foliage:GetChildren()) do
+                            if obj:IsA("Model") and (obj.Name == "Small Tree" or obj.Name == "Snowy Small Tree") then
+                                table.insert(trees, obj)
+                            end
+                        end
+                    end
+                    if map:FindFirstChild("Landmarks") then
+                        for _, obj in ipairs(map.Landmarks:GetChildren()) do
+                            if obj:IsA("Model") and obj.Name == "Small Tree" then
+                                table.insert(trees, obj)
+                            end
+                        end
+                    end
+                end
+                for _, tree in ipairs(trees) do
+                    local trunk = tree:FindFirstChild("Trunk")
+                    if trunk and trunk:IsA("BasePart") and (trunk.Position - hrp.Position).Magnitude <= auraRadius then
+                        local alreadyammount = false
+                        task.spawn(function()
+                            while chopAuraToggle and tree and tree.Parent and not alreadyammount do
+                                alreadyammount = true
+                                currentammount = currentammount + 1
+                                pcall(function()
+                                    ReplicatedStorage:WaitForChild("RemoteEvents").ToolDamageObject:InvokeServer(
+                                        tree,
+                                        tool,
+                                        tostring(currentammount) .. "_7367831688",
+                                        CFrame.new(-2.962610244751, 4.5547881126404, -75.950843811035, 0.89621275663376, -1.3894891459643e-08, 0.44362446665764, -7.994568895775e-10, 1, 3.293635941759e-08, -0.44362446665764, -2.9872644802253e-08, 0.89621275663376)
+                                    )
+                                end)
+                                task.wait(0.5)
+                            end
+                        end)
+                    end
+                end
+                task.wait(0.1)
+            else
+                task.wait(1)
+            end
+        else
+            task.wait(0.5)
+        end
+    end
+end
+
+function wiki(nome)
+    local c = 0
+    for _, i in ipairs(Workspace.Items:GetChildren()) do
+        if i.Name == nome then
+            c = c + 1
+        end
+    end
+    return c
+end
+
+function ghn()
+    return math.floor(LocalPlayer.PlayerGui.Interface.StatBars.HungerBar.Bar.Size.X.Scale * 100)
+end
+
+function feed(nome)
+    for _, item in ipairs(Workspace.Items:GetChildren()) do
+        if item.Name == nome then
+            ReplicatedStorage.RemoteEvents.RequestConsumeItem:InvokeServer(item)
+            break
+        end
+    end
+end
+
+
+-- Player TP to Items Bring System
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Function to teleport player to item, pick it up, then return with item
+local function bringItemsByPlayerTP(itemNames, originalPosition)
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
+        return 
+    end
+    
+    local hrp = LocalPlayer.Character.HumanoidRootPart
+    local itemsFound = {}
+    
+    -- Collect all matching items first
+    for _, itemName in ipairs(itemNames) do
+        for _, item in ipairs(workspace:GetDescendants()) do
+            if item.Name == itemName and (item:IsA("BasePart") or item:IsA("Model")) then
+                local part = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or item
+                if part and part:IsA("BasePart") then
+                    table.insert(itemsFound, {item = item, part = part})
+                end
+            end
+        end
+    end
+    
+    -- Process each item
+    for i, itemData in ipairs(itemsFound) do
+        local item = itemData.item
+        local part = itemData.part
+        
+        -- Check if item still exists
+        if item and item.Parent and part then
+            -- Step 1: Teleport player to the item
+            local itemPosition = part.Position + Vector3.new(0, 3, 0) -- Slightly above item
+            hrp.CFrame = CFrame.new(itemPosition)
+            
+            task.wait(0.2) -- Wait a moment for teleport to register
+            
+            -- Step 2: Start dragging the item (this attaches it to player)
+            pcall(function()
+                ReplicatedStorage:WaitForChild("RemoteEvents").RequestStartDraggingItem:FireServer(item)
+            end)
+            
+            task.wait(0.3) -- Wait for item to attach
+            
+            -- Step 3: Teleport back to original position with the item
+            hrp.CFrame = CFrame.new(originalPosition)
+            
+            task.wait(0.2) -- Wait for teleport
+            
+            -- Step 4: Stop dragging to drop the item at original position
+            pcall(function()
+                ReplicatedStorage:WaitForChild("RemoteEvents").StopDraggingItem:FireServer(item)
+            end)
+            
+            task.wait(0.5) -- Wait between items to avoid spam detection
+        end
+    end
+    
+    -- Final teleport back to original position
+    hrp.CFrame = CFrame.new(originalPosition)
+end
+
+---------------------------------------------------------------------------------
+-- Phần Discord
+---------------------------------------------------------------------------------
+
+TabDiscord:AddDiscordInvite({
+    Name = "Hutao Hub [Free] | Community",
+    Description = "Tham gia nhóm discord để nhận thông báo update mới",
+    Logo = "rbxassetid://90508203972003",
+    Invite = "http://discord.gg/7aR7kNVt4g",
+})
+
+
+---------------------------------------------------------------------------------
+-- Phần Main
+---------------------------------------------------------------------------------
+
+-- 🧠 Kill Aura Toggle (chuẩn format mới)
+TabMain:AddToggle({
+    Name = "Kill Aura",
+    Description = "Tự động tấn công mọi quái vật xung quanh bằng vũ khí chiến đấu",
+    Default = _G.KillAura or false,
+    Callback = function(Value)
+        _G.KillAura = Value
+        killAuraToggle = Value
+        if Value then
+            task.spawn(killAuraLoop)
+        else
+            local tool, _ = getAnyToolWithDamageID(false)
+            unequipTool(tool)
+        end
+    end
+})
+
+-- 🪓 Chop Aura Toggle (chuẩn format mới)
+TabMain:AddToggle({
+    Name = "Chop Aura",
+    Description = "Tự động chặt cây, đá hoặc tài nguyên gần bạn",
+    Default = _G.ChopAura or false,
+    Callback = function(Value)
+        _G.ChopAura = Value
+        chopAuraToggle = Value
+        if Value then
+            task.spawn(chopAuraLoop)
+        else
+            local tool, _ = getAnyToolWithDamageID(true)
+            unequipTool(tool)
+        end
+    end
+})
+
+-- 📏 Aura Radius Slider (chuẩn Fluent GUI)
+TabMain:AddSlider({
+    Name = "Aura Radius",
+    Description = "Điều chỉnh phạm vi tấn công tự động của Kill Aura và Chop Aura",
+    Min = 20,
+    Max = 800,
+    Default = _G.AuraRadius or 50,
+    Callback = function(Value)
+        auraRadius = math.clamp(Value, 10, 800)
+        _G.AuraRadius = auraRadius
+    end
+})
+
+
+local Section = TabMain:AddSection({"Plant"})
+
+
+-- 🌱 Auto Plant Toggle (chuẩn Fluent GUI)
+TabMain:AddToggle({
+    Name = "Auto Plant",
+    Description = "Tự động trồng cây hoặc tài nguyên khi có hạt giống trong túi",
+    Default = _G.AutoPlant or false,
+    Callback = function(Value)
+        _G.AutoPlant = Value
+        AutoPlantToggle = Value
+        if Value then
+            task.spawn(autoplant)
+        end
+    end
+})
+
+
+
+local Section = TabMain:AddSection({"Feed"})
+
+
+-- 🍖 Chọn loại thức ăn
+TabMain:AddDropdown({
+    Name = "Select Food",
+    Description = "Chọn loại thức ăn bạn muốn dùng khi tự động ăn",
+    Options = alimentos,
+    Default = _G.SelectedFood or selectedFood,
+    Multi = true,
+    Callback = function(Value)
+        selectedFood = Value
+        _G.SelectedFood = Value
+    end
+})
+
+-- 🍽️ Mức độ đói sẽ tự ăn (Slider thay cho Input)
+TabMain:AddSlider({
+    Name = "Feed Amount",
+    Description = "Tự động ăn khi thanh đói (%) thấp hơn giá trị này",
+    Min = 0,
+    Max = 100,
+    Default = _G.HungerThreshold or hungerThreshold or 50,
+    Callback = function(Value)
+        hungerThreshold = math.clamp(Value, 0, 100)
+        _G.HungerThreshold = hungerThreshold
+    end
+})
+
+-- 🤖 Bật chế độ Auto Feed
+TabMain:AddToggle({
+    Name = "Auto Feed",
+    Description = "Tự động ăn thức ăn đã chọn khi đói",
+    Default = _G.AutoFeed or false,
+    Callback = function(Value)
+        _G.AutoFeed = Value
+        autoFeedToggle = Value
+        if Value then
+            task.spawn(function()
+                while autoFeedToggle do
+                    task.wait(0.075)
+                    if wiki(selectedFood) == 0 then
+                        autoFeedToggle = false
+                        notifeed(selectedFood)
+                        break
+                    end
+                    if ghn() <= hungerThreshold then
+                        feed(selectedFood)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+
+
+local Section = TabMain:AddSection({"Campfire"})
+
+-- 🔥 Auto Upgrade Campfire
+TabMain:AddDropdown({
+    Name = "Seclect Item",
+    Description = "Chọn vật phẩm dùng để nâng cấp campfire",
+    Options = campfireFuelItems,
+    Default = _G.SelectedCampfireItem or selectedCampfireItem,
+    Multi = false,
+    AllowNone = true,
+    Callback = function(option)
+        selectedCampfireItem = option
+        _G.SelectedCampfireItem = option
+    end
+})
+
+TabMain:AddToggle({
+    Name = "Auto Upgrade Campfire",
+    Description = "Tự động thả vật phẩm đã chọn vào campfire để nâng cấp",
+    Default = _G.AutoUpgradeCampfireEnabled or false,
+    Callback = function(Value)
+        _G.AutoUpgradeCampfireEnabled = Value
+        autoUpgradeCampfireEnabled = Value
+
+        if Value then
+            task.spawn(function()
+                while autoUpgradeCampfireEnabled do
+                    if selectedCampfireItem then
+                        local items = {}
+
+                        -- เก็บ item ที่ตรงชื่อไว้ในตาราง (thu thập item trùng tên)
+                        for _, item in ipairs(workspace:WaitForChild("Items"):GetChildren()) do
+                            if item.Name == selectedCampfireItem then
+                                table.insert(items, item)
+                            end
+                        end
+
+                        -- ดึงทีละ 10 (หรือถ้ามีน้อยกว่าก็ดึงทั้งหมด)
+                        local count = math.min(10, #items)
+                        for i = 1, count do
+                            moveItemToPos(items[i], campfireDropPos)
+                        end
+                    end
+
+                    task.wait(1) -- Nhập Delay (VD: 1)
+                end
+            end)
+        end
+    end
+})
+
+
+local Section = TabMain:AddSection({"Scrap Items"})
+
+-- 🍖 Auto Cook Food
+TabMain:AddDropdown({
+    Name = "Seclect Food",
+    Description = "Chọn loại thức ăn để tự động nướng tại Campfire",
+    Options = autocookItems,
+    Default = _G.SelectedAutoCookItems or {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(options)
+        _G.SelectedAutoCookItems = options
+        for _, itemName in ipairs(autocookItems) do
+            autoCookEnabledItems[itemName] = table.find(options, itemName) ~= nil
+        end
+    end
+})
+
+TabMain:AddToggle({
+    Name = "Auto Cook Food",
+    Description = "Tự động nướng các loại thức ăn đã chọn",
+    Default = _G.AutoCookEnabled or false,
+    Callback = function(Value)
+        _G.AutoCookEnabled = Value
+        autoCookEnabled = Value
+    end
+})
+
+-- 🔁 Vòng lặp tự động nướng
+task.spawn(function()
+    while task.wait(0.5) do
+        if autoCookEnabled then
+            for itemName, enabled in pairs(autoCookEnabledItems) do
+                if enabled then
+                    for _, item in ipairs(workspace:WaitForChild("Items"):GetChildren()) do
+                        if item.Name == itemName then
+                            moveItemToPos(item, campfireDropPos)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+---------------------------------------------------------------------------------
+-- Phần Item
+---------------------------------------------------------------------------------
+
+local Section = TabItem:AddSection({"Fuel"})
+
+-- ⛽ Auto Bring Fuel Items (Fluent Style)
+local fuelToggleEnabled = false
+local fuelLoopRunning = false
+local selectedFuelItems = selectedFuelItems or {}
+
+TabItem:AddDropdown({
+    Name = "Select Fuel Items",
+    Description = "Chọn các vật phẩm nhiên liệu (Fuel) để mang theo",
+    Options = fuelItems,
+    Default = {},
+    MultiSelect = true,
+    Callback = function(options)
+        selectedFuelItems = options
+    end
+})
+
+TabItem:AddToggle({
+    Name = "Bring Fuel Items",
+    Description = "Tự động mang vật phẩm nhiên liệu đã chọn (hãy mở khóa ít nhất 1 khu vực trước)",
+    Default = false,
+    Callback = function(Value)
+        fuelToggleEnabled = Value
+
+        if Value then
+            if #selectedFuelItems > 0 then
+                fuelLoopRunning = true
+
+                task.spawn(function()
+                    while fuelLoopRunning and fuelToggleEnabled do
+                        pcall(function()
+                            if #selectedFuelItems > 0 then
+                                bypassBringSystem(selectedFuelItems, function()
+                                    return fuelToggleEnabled
+                                end)
+                            end
+                        end)
+
+                        -- Đợi 3s giữa mỗi vòng, có thể dừng sớm nếu tắt toggle
+                        local waitTime = 0
+                        while waitTime < 3 and fuelToggleEnabled and fuelLoopRunning do
+                            task.wait(0.1)
+                            waitTime += 0.1
+                        end
+                    end
+                    fuelLoopRunning = false
+                end)
+            else
+                fuelToggleEnabled = false
+                warn("[Fuel] ⚠️ Không có vật phẩm nào được chọn để mang theo.")
+            end
+        else
+            fuelLoopRunning = false
+        end
+    end
+})
+
+
+
+local Section = TabItem:AddSection({"Junk"})
+
+
+-- 🧺 Auto Bring Junk Items (Fluent Style)
+local junkToggleEnabled = false
+local junkLoopRunning = false
+local selectedJunkItems = selectedJunkItems or {}
+
+TabItem:AddDropdown({
+    Name = "Select Junk Items",
+    Description = "Chọn các vật phẩm Junk mà bạn muốn mang theo",
+    Options = junkItems,
+    Default = {},
+    MultiSelect = true,
+    Callback = function(options)
+        selectedJunkItems = options
+    end
+})
+
+TabItem:AddToggle({
+    Name = "Bring Junk Items",
+    Description = "Tự động mang các vật phẩm Junk đã chọn (hãy mở khoá ít nhất 1 khu vực trước)",
+    Default = false,
+    Callback = function(Value)
+        junkToggleEnabled = Value
+
+        if Value then
+            if #selectedJunkItems > 0 then
+                junkLoopRunning = true
+
+                task.spawn(function()
+                    while junkLoopRunning and junkToggleEnabled do
+                        pcall(function()
+                            if #selectedJunkItems > 0 then
+                                bypassBringSystem(selectedJunkItems, function()
+                                    return junkToggleEnabled
+                                end)
+                            end
+                        end)
+
+                        -- Chờ 3 giây, có thể dừng ngay khi tắt
+                        local waitTime = 0
+                        while waitTime < 3 and junkToggleEnabled and junkLoopRunning do
+                            task.wait(0.1)
+                            waitTime += 0.1
+                        end
+                    end
+
+                    junkLoopRunning = false
+                end)
+            else
+                junkToggleEnabled = false
+                warn("[Junk] ❌ Không có vật phẩm nào được chọn để mang theo.")
+            end
+        else
+            junkLoopRunning = false
+        end
+    end
+})
+
+
+local Section = TabItem:AddSection({"Blue Print"})
+
+-- 🧱 Auto Bring BluePrint Items (Fluent Style)
+local BlueprintToggleEnabled = false
+local BlueprintLoopRunning = false
+local selectedBlueprintItems = selectedBlueprintItems or {}
+
+TabItem:AddDropdown({
+    Name = "Select Blueprint Items",
+    Description = "Chọn các vật phẩm Blueprint bạn muốn mang theo",
+    Options = selectedBlueprintItems,
+    Default = {},
+    MultiSelect = true,
+    Callback = function(options)
+        selectedBlueprintItems = options
+    end
+})
+
+TabItem:AddToggle({
+    Name = "Bring Blueprint Items",
+    Description = "Tự động mang các vật phẩm Blueprint đã chọn (hãy mở khoá khu vực trước)",
+    Default = false,
+    Callback = function(Value)
+        BlueprintToggleEnabled = Value
+
+        if Value then
+            if #selectedBlueprintItems > 0 then
+                BlueprintLoopRunning = true
+
+                task.spawn(function()
+                    while BlueprintLoopRunning and BlueprintToggleEnabled do
+                        pcall(function()
+                            if #selectedBlueprintItems > 0 then
+                                bypassBringSystem(selectedBlueprintItems, function()
+                                    return BlueprintToggleEnabled
+                                end)
+                            end
+                        end)
+
+                        -- Chờ 3 giây, có thể dừng bất kỳ lúc nào
+                        local waitTime = 0
+                        while waitTime < 3 and BlueprintToggleEnabled and BlueprintLoopRunning do
+                            task.wait(0.1)
+                            waitTime += 0.1
+                        end
+                    end
+
+                    BlueprintLoopRunning = false
+                end)
+            else
+                BlueprintToggleEnabled = false
+                warn("[Blueprint] ❌ Không có vật phẩm nào được chọn để mang theo.")
+            end
+        else
+            BlueprintLoopRunning = false
+        end
+    end
+})
+
+
+local Section = TabItem:AddSection({"Food"})
+
+
+-- 🍖 Auto Bring Food Items (Fluent Style)
+local foodToggleEnabled = false
+local foodLoopRunning = false
+local selectedFoodItems = selectedFoodItems or {}
+
+TabItem:AddDropdown({
+    Name = "Select Food Items",
+    Description = "Chọn các vật phẩm thức ăn (Food) để mang theo",
+    Options = foodItems,
+    Default = {},
+    MultiSelect = true,
+    Callback = function(options)
+        selectedFoodItems = options
+    end
+})
+
+TabItem:AddToggle({
+    Name = "Bring Food Items",
+    Description = "Tự động mang thức ăn đã chọn (hãy mở khóa ít nhất 1 khu vực trước)",
+    Default = false,
+    Callback = function(Value)
+        foodToggleEnabled = Value
+
+        if Value then
+            if #selectedFoodItems > 0 then
+                foodLoopRunning = true
+
+                task.spawn(function()
+                    while foodLoopRunning and foodToggleEnabled do
+                        pcall(function()
+                            if #selectedFoodItems > 0 then
+                                bypassBringSystem(selectedFoodItems, function()
+                                    return foodToggleEnabled
+                                end)
+                            end
+                        end)
+
+                        -- Đợi 3 giây giữa mỗi vòng, có thể dừng sớm nếu toggle tắt
+                        local waitTime = 0
+                        while waitTime < 3 and foodToggleEnabled and foodLoopRunning do
+                            task.wait(0.1)
+                            waitTime += 0.1
+                        end
+                    end
+                    foodLoopRunning = false
+                end)
+            else
+                foodToggleEnabled = false
+                warn("[Food] ⚠️ Không có vật phẩm nào được chọn để mang theo.")
+            end
+        else
+            foodLoopRunning = false
+        end
+    end
+})
+
+
+local Section = TabItem:AddSection({"Pelts"})
+
+
+-- 🦊 Auto Bring Pelts Items (Fluent Style)
+local PeltsToggleEnabled = false
+local PeltsLoopRunning = false
+local selectedPeltsItems = selectedPeltsItems or {}
+
+TabItem:AddDropdown({
+    Name = "Select Pelts Items",
+    Description = "Chọn các vật phẩm Pelts bạn muốn mang theo",
+    Options = PeltsItems,
+    Default = {},
+    MultiSelect = true,
+    Callback = function(options)
+        selectedPeltsItems = options
+    end
+})
+
+TabItem:AddToggle({
+    Name = "Bring Pelts Items",
+    Description = "Tự động mang các vật phẩm Pelts đã chọn (hãy mở khoá ít nhất 1 khu vực trước)",
+    Default = false,
+    Callback = function(Value)
+        PeltsToggleEnabled = Value
+
+        if Value then
+            if #selectedPeltsItems > 0 then
+                PeltsLoopRunning = true
+
+                task.spawn(function()
+                    while PeltsLoopRunning and PeltsToggleEnabled do
+                        pcall(function()
+                            if #selectedPeltsItems > 0 then
+                                bypassBringSystem(selectedPeltsItems, function()
+                                    return PeltsToggleEnabled
+                                end)
+                            end
+                        end)
+
+                        -- Chờ có thể dừng ngay khi tắt
+                        local waitTime = 0
+                        while waitTime < 3 and PeltsToggleEnabled and PeltsLoopRunning do
+                            task.wait(0.1)
+                            waitTime += 0.1
+                        end
+                    end
+
+                    PeltsLoopRunning = false
+                end)
+            else
+                PeltsToggleEnabled = false
+                warn("[Pelts] ❌ Không có vật phẩm nào được chọn để mang theo.")
+            end
+        else
+            PeltsLoopRunning = false
+        end
+    end
+})
+
+local Section = TabItem:AddSection({"Medicine"})
+
+-- 💊 Auto Bring Medical Items (Fluent Style)
+local medicalToggleEnabled = false
+local medicalLoopRunning = false
+local selectedMedicalItems = selectedMedicalItems or {}
+
+TabItem:AddDropdown({
+    Name = "Select Medical Items",
+    Description = "Chọn các vật phẩm y tế (Medical) để mang theo",
+    Options = medicalItems,
+    Default = {},
+    MultiSelect = true,
+    Callback = function(options)
+        selectedMedicalItems = options
+    end
+})
+
+TabItem:AddToggle({
+    Name = "Bring Medical Items",
+    Description = "Tự động mang các vật phẩm y tế đã chọn (hãy mở khóa ít nhất 1 khu vực trước)",
+    Default = false,
+    Callback = function(Value)
+        medicalToggleEnabled = Value
+
+        if Value then
+            if #selectedMedicalItems > 0 then
+                medicalLoopRunning = true
+
+                task.spawn(function()
+                    while medicalLoopRunning and medicalToggleEnabled do
+                        pcall(function()
+                            if #selectedMedicalItems > 0 then
+                                bypassBringSystem(selectedMedicalItems, function()
+                                    return medicalToggleEnabled
+                                end)
+                            end
+                        end)
+
+                        -- Đợi 3 giây giữa mỗi vòng, có thể dừng sớm nếu toggle bị tắt
+                        local waitTime = 0
+                        while waitTime < 3 and medicalToggleEnabled and medicalLoopRunning do
+                            task.wait(0.1)
+                            waitTime += 0.1
+                        end
+                    end
+                    medicalLoopRunning = false
+                end)
+            else
+                medicalToggleEnabled = false
+                warn("[Medical] ⚠️ Không có vật phẩm y tế nào được chọn để mang theo.")
+            end
+        else
+            medicalLoopRunning = false
+        end
+    end
+})
+
+
+local Section = TabItem:AddSection({"Equipment"})
+
+-- ⚙️ Equipment Bring System
+TabItem:AddDropdown({
+    Name = "Select Equipment Items",
+    Description = "Chọn các vật phẩm trang bị muốn mang",
+    Default = {},
+    Options = equipmentItems,
+    MultiSelect = true,
+    Callback = function(options)
+        selectedEquipmentItems = options
+    end
+})
+
+TabItem:AddToggle({
+    Name = "Bring Equipment Items",
+    Description = "Trước khi mang hãy mở khóa ít nhất 1 khu vực!",
+    Default = false,
+    Callback = function(Value)
+        equipmentToggleEnabled = Value
+
+        if Value then
+            if #selectedEquipmentItems > 0 then
+                equipmentLoopRunning = true
+                task.spawn(function()
+                    while equipmentLoopRunning and equipmentToggleEnabled do
+                        if #selectedEquipmentItems > 0 and equipmentToggleEnabled then
+                            bypassBringSystem(selectedEquipmentItems, function() 
+                                return equipmentToggleEnabled 
+                            end)
+                        end
+
+                        -- Chờ với kiểm tra dừng an toàn
+                        local waitTime = 0
+                        while waitTime < 3 and equipmentToggleEnabled and equipmentLoopRunning do
+                            task.wait(0.1)
+                            waitTime += 0.1
+                        end
+                    end
+                    equipmentLoopRunning = false
+                end)
+            else
+                equipmentToggleEnabled = false
+            end
+        else
+            equipmentLoopRunning = false
+        end
+    end
+})
+
+---------------------------------------------------------------------------------
+-- Phần Teleport
+---------------------------------------------------------------------------------
+
+-- 🗺️ Teleport Buttons (chuẩn Fluent GUI)
+TabTeleport:AddButton({
+    Name = "Teleport to Campfire",
+    Description = "Dịch chuyển ngay đến khu vực Campfire",
+    Callback = function()
+        tp1()
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Teleport to Stronghold",
+    Description = "Dịch chuyển đến căn cứ Stronghold",
+    Callback = function()
+        tp2()
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Teleport to Safe Zone",
+    Description = "Tạo Safe Zone trên không và dịch chuyển đến đó",
+    Callback = function()
+        if not workspace:FindFirstChild("SafeZonePart") then
+            local createpart = Instance.new("Part")
+            createpart.Name = "SafeZonePart"
+            createpart.Size = Vector3.new(30, 3, 30)
+            createpart.Position = Vector3.new(0, 350, 0)
+            createpart.Anchored = true
+            createpart.CanCollide = true
+            createpart.Transparency = 0.8
+            createpart.Color = Color3.fromRGB(255, 0, 0)
+            createpart.Parent = workspace
+        end
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        hrp.CFrame = CFrame.new(0, 360, 0)
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Teleport to Trader (Bunny Foot)",
+    Description = "Dịch chuyển đến khu vực thương nhân Bunny Foot",
+    Callback = function()
+        local pos = Vector3.new(-37.08, 3.98, -16.33)
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        hrp.CFrame = CFrame.new(pos)
+    end
+})
+
+
+local Section = TabTeleport:AddSection({"Children"})
+
+-- 🧭 Teleport to Child (Mob)
+local MobDropdown = TabTeleport:AddDropdown({
+    Name = "Select Child",
+    Description = "Chọn đối tượng (Mob) để dịch chuyển tới",
+    Options = currentMobNames,
+    Default = currentMobNames[1],
+    Multi = false,
+    AllowNone = true,
+    Callback = function(selected)
+        selectedMob = selected
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Refresh List",
+    Description = "Làm mới danh sách Child hiện có",
+    Callback = function()
+        currentMobs, currentMobNames = getMobs()
+        if #currentMobNames > 0 then
+            selectedMob = currentMobNames[1]
+            MobDropdown:Refresh(currentMobNames)
+        else
+            selectedMob = nil
+            MobDropdown:Refresh({ "⚠️ No child found" })
+        end
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Teleport to Child",
+    Description = "Dịch chuyển đến đối tượng đã chọn",
+    Callback = function()
+        if selectedMob and currentMobs then
+            for i, name in ipairs(currentMobNames) do
+                if name == selectedMob then
+                    local targetMob = currentMobs[i]
+                    if targetMob then
+                        local part = targetMob.PrimaryPart or targetMob:FindFirstChildWhichIsA("BasePart")
+                        if part then
+                            local player = game:GetService("Players").LocalPlayer
+                            local character = player.Character or player.CharacterAdded:Wait()
+                            local hrp = character:FindFirstChild("HumanoidRootPart")
+                            if hrp then
+                                hrp.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+                            end
+                        end
+                    end
+                    break
+                end
+            end
+        else
+            warn("⚠️ No child selected or found in currentMobs.")
+        end
+    end
+})
+
+
+
+local Section = TabTeleport:AddSection({"Chest"})
+
+-- 💰 Teleport to Chest
+local ChestDropdown = TabTeleport:AddDropdown({
+    Name = "Select Chest",
+    Description = "Chọn rương (Chest) để dịch chuyển tới",
+    Options = currentChestNames,
+    Default = currentChestNames[1],
+    Multi = false,
+    AllowNone = true,
+    Callback = function(selected)
+        selectedChest = selected
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Refresh List",
+    Description = "Làm mới danh sách Chest hiện có",
+    Callback = function()
+        currentChests, currentChestNames = getChests()
+        if #currentChestNames > 0 then
+            selectedChest = currentChestNames[1]
+            ChestDropdown:Refresh(currentChestNames)
+        else
+            selectedChest = nil
+            ChestDropdown:Refresh({ "⚠️ No chests found" })
+        end
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Teleport to Chest",
+    Description = "Dịch chuyển đến rương đã chọn",
+    Callback = function()
+        if selectedChest and currentChests then
+            local chestIndex = table.find(currentChestNames, selectedChest) or 1
+            local targetChest = currentChests[chestIndex]
+
+            if targetChest then
+                local part = targetChest.PrimaryPart or targetChest:FindFirstChildWhichIsA("BasePart")
+                if part then
+                    local player = game:GetService("Players").LocalPlayer
+                    local character = player.Character or player.CharacterAdded:Wait()
+                    local hrp = character:FindFirstChild("HumanoidRootPart")
+
+                    if hrp then
+                        hrp.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+                    end
+                end
+            else
+                warn("⚠️ Chest not found in currentChests.")
+            end
+        else
+            warn("⚠️ No chest selected or list empty.")
+        end
+    end
+})
+
+---------------------------------------------------------------------------------
+-- Phần Misc
+---------------------------------------------------------------------------------
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+-- 🌕 FullBright Settings
+local fullBrightEnabled = false
+local fullBrightLoop
+
+local function applyFullBright()
+    if not fullBrightEnabled then return end
+    Lighting.Ambient = Color3.fromRGB(200, 200, 200) -- sáng nhẹ
+    Lighting.Brightness = 4 -- giảm độ sáng từ 10 → 4
+    Lighting.GlobalShadows = false
+end
+
+local function enableFullBright()
+    if fullBrightLoop then fullBrightLoop:Disconnect() end
+    applyFullBright()
+    fullBrightLoop = Lighting:GetPropertyChangedSignal("ClockTime"):Connect(applyFullBright)
+end
+
+local function disableFullBright()
+    if fullBrightLoop then
+        fullBrightLoop:Disconnect()
+        fullBrightLoop = nil
+    end
+    Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+    Lighting.Brightness = 1
+    Lighting.GlobalShadows = true
+end
+
+-- ✅ Toggle mới: FullBright
+TabMisc:AddToggle({
+    Name = "Full Bright",
+    Description = "Tự động làm sáng toàn bản đồ",
+    Default = _G.FullBright or false,
+    Callback = function(Value)
+        _G.FullBright = Value
+        fullBrightEnabled = Value
+        if Value then
+            enableFullBright()
+        else
+            disableFullBright()
+        end
+    end
+})
+
+-- 🌫️ Remove Fog Settings
+local fogEnabled = false
+local fogLoop
+
+local function removeFog()
+    Lighting.FogStart = 0
+    Lighting.FogEnd = 1000000
+
+    local atmosphere = Lighting:FindFirstChild("Atmosphere")
+    if atmosphere then
+        atmosphere.Density = 0
+        atmosphere.Offset = 0
+        atmosphere.Haze = 0
+        atmosphere.Color = Color3.new(1, 1, 1)
+    end
+end
+
+local function restoreFog()
+    Lighting.FogStart = 200
+    Lighting.FogEnd = 1000
+
+    local atmosphere = Lighting:FindFirstChild("Atmosphere")
+    if atmosphere then
+        atmosphere.Density = 0.3
+        atmosphere.Offset = 0
+        atmosphere.Haze = 0.5
+        atmosphere.Color = Color3.fromRGB(200, 200, 200)
+    end
+end
+
+-- ✅ Toggle mới: Remove Fog
+TabMisc:AddToggle({
+    Name = "Remove Fog",
+    Description = "Xóa sương mù và làm tầm nhìn rõ hơn",
+    Default = _G.RemoveFog or false,
+    Callback = function(Value)
+        _G.RemoveFog = Value
+        fogEnabled = Value
+        if Value then
+            removeFog()
+            fogLoop = RunService.Heartbeat:Connect(removeFog)
+        else
+            if fogLoop then fogLoop:Disconnect() fogLoop = nil end
+            restoreFog()
+        end
+    end
+})
+
+
+local Section = TabMisc:AddSection({"Bypass"})
+
+-- 🧩 Services
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local HumanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- ⚙️ Biến toàn cục
+local torchLoop
+local escapeLoopOwl
+local escapeLoopDeer
+
+-- 🦉 / 🦌 Config
+local ESCAPE_DISTANCE_OWL = 80
+local ESCAPE_SPEED_OWL = 5
+
+local ESCAPE_DISTANCE_DEER = 60
+local ESCAPE_SPEED_DEER = 4
+
+
+------------------------------------------------------------
+-- 🦌 Auto Stun Deer (Need Flashlight)
+------------------------------------------------------------
+TabMisc:AddToggle({
+    Name = "Auto Stun Deer",
+    Description = "Tự động làm Deer bị choáng (cần cầm Flashlight)",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            torchLoop = RunService.RenderStepped:Connect(function()
+                pcall(function()
+                    local remote = ReplicatedStorage:FindFirstChild("RemoteEvents")
+                    if not remote then return end
+                    local deerRemote = remote:FindFirstChild("DeerHitByTorch")
+                    local deer = Workspace:FindFirstChild("Characters")
+                        and Workspace.Characters:FindFirstChild("Deer")
+
+                    if deerRemote and deer then
+                        deerRemote:InvokeServer(deer)
+                    end
+                end)
+                task.wait(0.1)
+            end)
+        else
+            if torchLoop then
+                torchLoop:Disconnect()
+                torchLoop = nil
+            end
+        end
+    end
+})
+
+
+------------------------------------------------------------
+-- 🦉 Escape From Owl
+------------------------------------------------------------
+TabMisc:AddToggle({
+    Name = "Escape From Owl",
+    Description = "Tự động tránh xa Owl khi ở gần",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            escapeLoopOwl = RunService.RenderStepped:Connect(function()
+                pcall(function()
+                    local characters = Workspace:FindFirstChild("Characters")
+                    if not characters then return end
+                    local owl = characters:FindFirstChild("Owl")
+
+                    if owl and owl:FindFirstChild("HumanoidRootPart") then
+                        local myPos = HumanoidRootPart.Position
+                        local owlPos = owl.HumanoidRootPart.Position
+                        local distance = (myPos - owlPos).Magnitude
+
+                        if distance < ESCAPE_DISTANCE_OWL then
+                            local direction = (myPos - owlPos).Unit
+                            HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + direction * ESCAPE_SPEED_OWL
+                        end
+                    end
+                end)
+            end)
+        else
+            if escapeLoopOwl then
+                escapeLoopOwl:Disconnect()
+                escapeLoopOwl = nil
+            end
+        end
+    end
+})
+
+
+------------------------------------------------------------
+-- 🦌 Escape From Deer
+------------------------------------------------------------
+TabMisc:AddToggle({
+    Name = "Escape From Deer",
+    Description = "Tự động tránh xa Deer khi ở gần",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            escapeLoopDeer = RunService.RenderStepped:Connect(function()
+                pcall(function()
+                    local characters = Workspace:FindFirstChild("Characters")
+                    if not characters then return end
+                    local deer = characters:FindFirstChild("Deer")
+
+                    if deer and deer:FindFirstChild("HumanoidRootPart") then
+                        local myPos = HumanoidRootPart.Position
+                        local deerPos = deer.HumanoidRootPart.Position
+                        local distance = (myPos - deerPos).Magnitude
+
+                        if distance < ESCAPE_DISTANCE_DEER then
+                            local direction = (myPos - deerPos).Unit
+                            HumanoidRootPart.CFrame = HumanoidRootPart.CFrame + direction * ESCAPE_SPEED_DEER
+                        end
+                    end
+                end)
+            end)
+        else
+            if escapeLoopDeer then
+                escapeLoopDeer:Disconnect()
+                escapeLoopDeer = nil
+            end
+        end
+    end
+})
+
+local Section = TabMisc:AddSection({"Show"})
+
+
+-- ⚙️ FPS + Ping Drawing Setup
+local showFPS = true
+local showPing = true
+
+local fpsText = Drawing.new("Text")
+fpsText.Size = 16
+fpsText.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X - 100, 10)
+fpsText.Color = Color3.fromRGB(0, 255, 0)
+fpsText.Center = false
+fpsText.Outline = true
+fpsText.Visible = showFPS
+
+local msText = Drawing.new("Text")
+msText.Size = 16
+msText.Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X - 100, 30)
+msText.Color = Color3.fromRGB(0, 255, 0)
+msText.Center = false
+msText.Outline = true
+msText.Visible = showPing
+
+local fpsCounter = 0
+local fpsLastUpdate = tick()
+
+RunService.RenderStepped:Connect(function()
+    fpsCounter += 1
+    if tick() - fpsLastUpdate >= 1 then
+        -- 🧮 Update FPS
+        if showFPS then
+            fpsText.Text = "FPS: " .. tostring(fpsCounter)
+            fpsText.Visible = true
+        else
+            fpsText.Visible = false
+        end
+
+        -- 🌐 Update Ping
+        if showPing then
+            local pingStat = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]
+            local ping = pingStat and math.floor(pingStat:GetValue()) or 0
+            msText.Text = "Ping: " .. ping .. " ms"
+
+            if ping <= 60 then
+                msText.Color = Color3.fromRGB(0, 255, 0)
+            elseif ping <= 120 then
+                msText.Color = Color3.fromRGB(255, 165, 0)
+            else
+                msText.Color = Color3.fromRGB(255, 0, 0)
+            end
+
+            msText.Visible = true
+        else
+            msText.Visible = false
+        end
+
+        fpsCounter = 0
+        fpsLastUpdate = tick()
+    end
+end)
+
+-- ✅ Fluent GUI Toggle format mới
+TabMisc:AddToggle({
+    Name = "Show FPS",
+    Description = "Hiển thị số khung hình (FPS) trên màn hình",
+    Default = _G.ShowFPS or true,
+    Callback = function(Value)
+        _G.ShowFPS = Value
+        showFPS = Value
+        fpsText.Visible = Value
+    end
+})
+
+TabMísc:AddToggle({
+    Name = "Show Ping",
+    Description = "Hiển thị độ trễ mạng (Ping) trên màn hình",
+    Default = _G.ShowPing or true,
+    Callback = function(Value)
+        _G.ShowPing = Value
+        showPing = Value
+        msText.Visible = Value
+    end
+})
