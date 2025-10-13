@@ -2678,109 +2678,153 @@ if World3 then
 	})
 end
 
+------------------------------------------------
+-- ⚙️ HÀM TWEEN & DỪNG TWEEN AN TOÀN (dùng chung với NPC)
+------------------------------------------------
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local currentTween = nil
+
+function topos(cf)
+	pcall(function()
+		local char = player.Character
+		if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+		local hrp = char.HumanoidRootPart
+
+		if currentTween then
+			currentTween:Cancel()
+			currentTween = nil
+		end
+
+		local distance = (hrp.Position - cf.Position).Magnitude
+		local tweenInfo = TweenInfo.new(distance / 200, Enum.EasingStyle.Linear)
+		currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = cf})
+		currentTween:Play()
+
+		currentTween.Completed:Connect(function()
+			currentTween = nil
+		end)
+	end)
+end
+
+function StopTween(flag)
+	if not flag and currentTween then
+		currentTween:Cancel()
+		currentTween = nil
+	end
+end
+
+------------------------------------------------
+-- 🚀 TOGGLE TELEPORT ĐẾN ĐẢO (bản fix an toàn)
+------------------------------------------------
 TabTeleport:AddToggle({
 	Name = "Teleport To Island",
 	Description = "Tween đến đảo được chọn",
 	Default = false,
 	Callback = function(value)
 		_G.TeleportIsland = value
-		if _G.TeleportIsland then
-			repeat task.wait()
-				if _G.SelectIsland == "WindMill" then
+		if value then
+			repeat
+				task.wait(0.15)
+				local v = _G.SelectIsland
+				if not v then continue end
+
+				if v == "WindMill" then
 					topos(CFrame.new(979.7989, 16.5166, 1429.0466))
-				elseif _G.SelectIsland == "Marine" then
+				elseif v == "Marine" then
 					topos(CFrame.new(-2566.4296, 6.8556, 2045.2561))
-				elseif _G.SelectIsland == "Middle Town" then
+				elseif v == "Middle Town" then
 					topos(CFrame.new(-690.3308, 15.0942, 1582.238))
-				elseif _G.SelectIsland == "Jungle" then
+				elseif v == "Jungle" then
 					topos(CFrame.new(-1612.7957, 36.8520, 149.1284))
-				elseif _G.SelectIsland == "Pirate Village" then
+				elseif v == "Pirate Village" then
 					topos(CFrame.new(-1181.3093, 4.7514, 3803.5456))
-				elseif _G.SelectIsland == "Desert" then
+				elseif v == "Desert" then
 					topos(CFrame.new(944.1578, 20.9197, 4373.3002))
-				elseif _G.SelectIsland == "Snow Island" then
+				elseif v == "Snow Island" then
 					topos(CFrame.new(1347.8067, 104.6680, -1319.7370))
-				elseif _G.SelectIsland == "MarineFord" then
+				elseif v == "MarineFord" then
 					topos(CFrame.new(-4914.8212, 50.9636, 4281.0278))
-				elseif _G.SelectIsland == "Colosseum" then
+				elseif v == "Colosseum" then
 					topos(CFrame.new(-1427.6203, 7.2881, -2792.7722))
-				elseif _G.SelectIsland == "Sky Island 1" then
+				elseif v == "Sky Island 1" then
 					topos(CFrame.new(-4869.1025, 733.4605, -2667.0180))
-				elseif _G.SelectIsland == "Sky Island 2" then
+				elseif v == "Sky Island 2" then
 					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-4607.8227, 872.5424, -1667.5568))
-				elseif _G.SelectIsland == "Sky Island 3" then
+				elseif v == "Sky Island 3" then
 					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-7894.6176, 5547.1416, -380.2911))
-				elseif _G.SelectIsland == "Prison" then
+				elseif v == "Prison" then
 					topos(CFrame.new(4875.33, 5.6519, 734.8502))
-				elseif _G.SelectIsland == "Magma Village" then
+				elseif v == "Magma Village" then
 					topos(CFrame.new(-5247.7163, 12.8839, 8504.9687))
-				elseif _G.SelectIsland == "Under Water Island" then
+				elseif v == "Under Water Island" then
 					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(61163.8515, 11.6796, 1819.7841))
-				elseif _G.SelectIsland == "Fountain City" then
+				elseif v == "Fountain City" then
 					topos(CFrame.new(5127.1284, 59.5013, 4105.4458))
-				elseif _G.SelectIsland == "Shank Room" then
+				elseif v == "Shank Room" then
 					topos(CFrame.new(-1442.1655, 29.8788, -28.3547))
-				elseif _G.SelectIsland == "Mob Island" then
+				elseif v == "Mob Island" then
 					topos(CFrame.new(-2850.2006, 7.3922, 5354.9926))
-				elseif _G.SelectIsland == "The Cafe" then
+				elseif v == "The Cafe" then
 					topos(CFrame.new(-380.4792, 77.2203, 255.8255))
-				elseif _G.SelectIsland == "Frist Spot" then
+				elseif v == "Frist Spot" then
 					topos(CFrame.new(-11.3114, 29.2767, 2771.5224))
-				elseif _G.SelectIsland == "Dark Area" then
+				elseif v == "Dark Area" then
 					topos(CFrame.new(3780.03, 22.6521, -3498.5859))
-				elseif _G.SelectIsland == "Flamingo Mansion" then
+				elseif v == "Flamingo Mansion" then
 					topos(CFrame.new(-483.7337, 332.0383, 595.3270))
-				elseif _G.SelectIsland == "Flamingo Room" then
+				elseif v == "Flamingo Room" then
 					topos(CFrame.new(2284.4140, 15.1520, 875.7253))
-				elseif _G.SelectIsland == "Green Zone" then
+				elseif v == "Green Zone" then
 					topos(CFrame.new(-2448.53, 73.0161, -3210.6306))
-				elseif _G.SelectIsland == "Factory" then
+				elseif v == "Factory" then
 					topos(CFrame.new(424.1269, 211.1617, -427.5404))
-				elseif _G.SelectIsland == "Colossuim" then
+				elseif v == "Colossuim" then
 					topos(CFrame.new(-1503.6224, 219.7956, 1369.3101))
-				elseif _G.SelectIsland == "Zombie Island" then
+				elseif v == "Zombie Island" then
 					topos(CFrame.new(-5622.0332, 492.1960, -781.7855))
-				elseif _G.SelectIsland == "Two Snow Mountain" then
+				elseif v == "Two Snow Mountain" then
 					topos(CFrame.new(753.1428, 408.2355, -5274.6147))
-				elseif _G.SelectIsland == "Punk Hazard" then
+				elseif v == "Punk Hazard" then
 					topos(CFrame.new(-6127.6542, 15.9517, -5040.2861))
-				elseif _G.SelectIsland == "Cursed Ship" then
+				elseif v == "Cursed Ship" then
 					topos(CFrame.new(923.4019, 125.0571, 32885.875))
-				elseif _G.SelectIsland == "Ice Castle" then
+				elseif v == "Ice Castle" then
 					topos(CFrame.new(6148.4116, 294.3868, -6741.1166))
-				elseif _G.SelectIsland == "Forgotten Island" then
+				elseif v == "Forgotten Island" then
 					topos(CFrame.new(-3032.7641, 317.8967, -10075.3730))
-				elseif _G.SelectIsland == "Ussop Island" then
+				elseif v == "Ussop Island" then
 					topos(CFrame.new(4816.8618, 8.4599, 2863.8195))
-				elseif _G.SelectIsland == "Mini Sky Island" then
+				elseif v == "Mini Sky Island" then
 					topos(CFrame.new(-288.7406, 49326.3164, -35248.5937))
-				elseif _G.SelectIsland == "Great Tree" then
+				elseif v == "Great Tree" then
 					topos(CFrame.new(2681.2736, 1682.8092, -7190.9853))
-				elseif _G.SelectIsland == "Castle On The Sea" then
+				elseif v == "Castle On The Sea" then
 					topos(CFrame.new(-5074.4555, 314.5155, -2991.0544))
-				elseif _G.SelectIsland == "MiniSky" then
+				elseif v == "MiniSky" then
 					topos(CFrame.new(-260.6555, 49325.8046, -35253.5703))
-				elseif _G.SelectIsland == "Port Town" then
+				elseif v == "Port Town" then
 					topos(CFrame.new(-290.7376, 6.7299, 5343.5537))
-				elseif _G.SelectIsland == "Hydra Island" then
+				elseif v == "Hydra Island" then
 					topos(CFrame.new(5228.8842, 604.2340, 345.0400))
-				elseif _G.SelectIsland == "Floating Turtle" then
+				elseif v == "Floating Turtle" then
 					topos(CFrame.new(-13274.5283, 531.8207, -7579.2226))
-				elseif _G.SelectIsland == "Mansion" then
+				elseif v == "Mansion" then
 					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-12471.1699, 374.9402, -7551.6777))
-				elseif _G.SelectIsland == "Haunted Castle" then
+				elseif v == "Haunted Castle" then
 					topos(CFrame.new(-9515.3720, 164.0062, 5786.0610))
-				elseif _G.SelectIsland == "Ice Cream Island" then
+				elseif v == "Ice Cream Island" then
 					topos(CFrame.new(-902.5681, 79.9320, -10988.8476))
-				elseif _G.SelectIsland == "Peanut Island" then
+				elseif v == "Peanut Island" then
 					topos(CFrame.new(-2062.7475, 50.4738, -10232.5683))
-				elseif _G.SelectIsland == "Cake Island" then
+				elseif v == "Cake Island" then
 					topos(CFrame.new(-1884.7747, 19.3275, -11666.8974))
-				elseif _G.SelectIsland == "Cocoa Island" then
+				elseif v == "Cocoa Island" then
 					topos(CFrame.new(87.9427, 73.5545, -12319.4648))
-				elseif _G.SelectIsland == "Candy Island" then
+				elseif v == "Candy Island" then
 					topos(CFrame.new(-1014.4241, 149.1106, -14555.9628))
-				elseif _G.SelectIsland == "Tiki Outpost" then
+				elseif v == "Tiki Outpost" then
 					topos(CFrame.new(-16218.6826, 9.0863, 445.6184))
 				end
 			until not _G.TeleportIsland
@@ -2788,7 +2832,6 @@ TabTeleport:AddToggle({
 		StopTween(_G.TeleportIsland)
 	end
 })
-
 local Section = TabTeleport:AddSection({"Npc"})
 
 -- 🌍 Xác định World hiện tại
@@ -2851,7 +2894,48 @@ for k, _ in pairs(CurrentList) do
 	table.insert(NPCNames, k)
 end
 
+------------------------------------------------
+-- ⚙️ HÀM TWEEN & DỪNG TWEEN AN TOÀN
+------------------------------------------------
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+local currentTween = nil
+
+function topos(cf)
+	pcall(function()
+		local char = player.Character
+		if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+		local hrp = char.HumanoidRootPart
+
+		-- Hủy tween cũ nếu có
+		if currentTween then
+			currentTween:Cancel()
+			currentTween = nil
+		end
+
+		local distance = (hrp.Position - cf.Position).Magnitude
+		local tweenInfo = TweenInfo.new(distance / 200, Enum.EasingStyle.Linear)
+		currentTween = TweenService:Create(hrp, tweenInfo, {CFrame = cf})
+		currentTween:Play()
+
+		currentTween.Completed:Connect(function()
+			currentTween = nil
+		end)
+	end)
+end
+
+function StopTween(flag)
+	if not flag and currentTween then
+		currentTween:Cancel()
+		currentTween = nil
+	end
+end
+
+------------------------------------------------
 -- 🪄 Dropdown chọn NPC
+------------------------------------------------
 TabTeleport:AddDropdown({
 	Name = "Select NPC",
 	Description = "Chọn NPC muốn dịch chuyển đến",
@@ -2862,7 +2946,9 @@ TabTeleport:AddDropdown({
 	end
 })
 
+------------------------------------------------
 -- 🚀 Toggle Teleport đến NPC
+------------------------------------------------
 TabTeleport:AddToggle({
 	Name = "Teleport To NPC",
 	Description = "Tween tới NPC đã chọn",
@@ -2871,7 +2957,7 @@ TabTeleport:AddToggle({
 		_G.TeleportNPC = value
 		if value then
 			repeat
-				task.wait()
+				task.wait(0.1)
 				if _G.SelectNPC and CurrentList[_G.SelectNPC] then
 					topos(CurrentList[_G.SelectNPC])
 				end
@@ -2880,6 +2966,7 @@ TabTeleport:AddToggle({
 		StopTween(_G.TeleportNPC)
 	end
 })
+
 
 -- Phần Visual
 
