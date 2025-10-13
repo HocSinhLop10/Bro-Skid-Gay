@@ -1914,7 +1914,7 @@ TabMisc:AddToggle({
     end
 })
 
-TabMísc:AddToggle({
+TabMisc:AddToggle({
     Name = "Show Ping",
     Description = "Hiển thị độ trễ mạng (Ping) trên màn hình",
     Default = _G.ShowPing or true,
@@ -1924,3 +1924,4 @@ TabMísc:AddToggle({
         msText.Visible = Value
     end
 })
+
