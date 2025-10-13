@@ -1974,78 +1974,81 @@ end);
 -- Các Nút Để Sử Dụng
 ---------------------------------------------------------------------------------
 
---=== AUTO FARM MAIN SYSTEM (UI REWRITE TO ADDTOGGLE/ADDDROPDOWN STYLE) ===--
-
+-- 🗡️ DANH SÁCH VŨ KHÍ
 local WeaponList = {
-	"Melee",
-	"Sword",
-	"Fruit",
-	"Gun"
+    "Melee",
+    "Sword",
+    "Fruit",
+    "Gun"
 }
 _G.SelectWeapon = "Melee"
 
 TabFarm:AddDropdown({
     Name = "Select Weapon",
-    Description = "Chọn vũ khí để farm",
-    Default = _G.SelectWeapon,
+    Description = "Chọn loại vũ khí để farm",
     Options = WeaponList,
-    Callback = function(Value)
-        _G.SelectWeapon = Value
+    Default = _G.SelectWeapon,
+    Callback = function(value)
+        _G.SelectWeapon = value
     end
 })
 
+-- 🧠 TỰ NHẬN VŨ KHÍ TƯƠNG ỨNG
 task.spawn(function()
-	while task.wait() do
-		pcall(function()
-			if _G.SelectWeapon == "Melee" then
-				for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
-					if v.ToolTip == "Melee" then
-						_G.SelectWeapon = v.Name
-					end
-				end
-			elseif _G.SelectWeapon == "Sword" then
-				for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
-					if v.ToolTip == "Sword" then
-						_G.SelectWeapon = v.Name
-					end
-				end
-			elseif _G.SelectWeapon == "Gun" then
-				for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
-					if v.ToolTip == "Gun" then
-						_G.SelectWeapon = v.Name
-					end
-				end
-			elseif _G.SelectWeapon == "Fruit" then
-				for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
-					if v.ToolTip == "Blox Fruit" then
-						_G.SelectWeapon = v.Name
-					end
-				end
-			end
-		end)
-	end
+    while task.wait() do
+        pcall(function()
+            local Backpack = game.Players.LocalPlayer.Backpack
+            if _G.SelectWeapon == "Melee" then
+                for _, v in pairs(Backpack:GetChildren()) do
+                    if v.ToolTip == "Melee" then
+                        _G.SelectWeapon = v.Name
+                    end
+                end
+            elseif _G.SelectWeapon == "Sword" then
+                for _, v in pairs(Backpack:GetChildren()) do
+                    if v.ToolTip == "Sword" then
+                        _G.SelectWeapon = v.Name
+                    end
+                end
+            elseif _G.SelectWeapon == "Gun" then
+                for _, v in pairs(Backpack:GetChildren()) do
+                    if v.ToolTip == "Gun" then
+                        _G.SelectWeapon = v.Name
+                    end
+                end
+            elseif _G.SelectWeapon == "Fruit" then
+                for _, v in pairs(Backpack:GetChildren()) do
+                    if v.ToolTip == "Blox Fruit" then
+                        _G.SelectWeapon = v.Name
+                    end
+                end
+            end
+        end)
+    end
 end)
 
-local FarmModeList = {
-	"Normal",
-	"Auto Quest",
-	"Nearest"
+-- ⚙️ FARM MODE
+local ListF = {
+    "Normal",
+    "Auto Quest",
+    "Nearest"
 }
 FarmMode = "Normal"
 
 TabFarm:AddDropdown({
     Name = "Farm Mode",
-    Description = "Chọn chế độ farm (Normal / Auto Quest / Nearest)",
+    Description = "Chọn chế độ farm",
+    Options = ListF,
     Default = FarmMode,
-    Options = FarmModeList,
-    Callback = function(Value)
-        FarmMode = Value
+    Callback = function(value)
+        FarmMode = value
     end
 })
 
+-- 🚀 AUTO FARM
 TabFarm:AddToggle({
-    Name = "Auto Farm",
-    Description = "Tự động farm theo chế độ được chọn",
+    Name = "Start Auto Farm",
+    Description = "Bật chế độ tự động farm quái",
     Default = _G.AutoFarm,
     Callback = function(Value)
         _G.AutoFarm = Value
@@ -2053,9 +2056,12 @@ TabFarm:AddToggle({
     end
 })
 
---=== AUTO FARM LOOP ===--
-spawn(function()
-	while task.wait() do
+-- ===========================
+-- TOÀN BỘ LOGIC AUTO FARM GỐC
+-- ===========================
+
+task.spawn(function()
+	while wait() do
 		if FarmMode == "Normal" and _G.AutoFarm then
 			pcall(function()
 				CheckQuest()
@@ -2063,7 +2069,7 @@ spawn(function()
 				if not string.find(QuestTitle, NameMon) then
 					game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
 				end
-				if game.Players.LocalPlayer.PlayerGui.Main.Quest.Visible == false then
+				if not game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Visible then
 					if BypassTP then
 						if (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - CFrameQuest.Position).Magnitude > 1500 then
 							BTP(CFrameQuest)
@@ -2074,13 +2080,13 @@ spawn(function()
 						TP1(CFrameQuest)
 					end
 					if (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - CFrameQuest.Position).Magnitude <= 5 then
-						game.ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, LevelQuest)
+						game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", NameQuest, LevelQuest)
 					end
-				else
-					if workspace.Enemies:FindFirstChild(Mon) then
-						for _, v in pairs(workspace.Enemies:GetChildren()) do
+				elseif game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Visible then
+					if game:GetService("Workspace").Enemies:FindFirstChild(Mon) then
+						for _, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
 							if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v.Name == Mon then
-								if string.find(game.Players.LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text, NameMon) then
+								if string.find(game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text, NameMon) then
 									repeat
 										task.wait(_G.FastAttackDelay)
 										StartBring = true
@@ -2093,7 +2099,7 @@ spawn(function()
 										v.Humanoid.WalkSpeed = 0
 										v.Head.CanCollide = false
 										AttackNoCD()
-									until not _G.AutoFarm or v.Humanoid.Health <= 0 or not v.Parent or not game.Players.LocalPlayer.PlayerGui.Main.Quest.Visible
+									until not _G.AutoFarm or v.Humanoid.Health <= 0 or not v.Parent or not game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Visible
 									StartBring = false
 								end
 							end
@@ -2108,18 +2114,49 @@ spawn(function()
 	end
 end)
 
---=== AUTO QUEST MODE ===--
-spawn(function()
-	while task.wait() do
+task.spawn(function()
+	while wait() do
+		if FarmMode == "Nearest" and _G.AutoFarm then
+			pcall(function()
+				for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
+					if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+						if (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude <= 5000 then
+							repeat
+								wait(_G.FastAttackDelay)
+								StartBring = true
+								AttackNoCD()
+								AutoHaki()
+								EquipWeapon(_G.SelectWeapon)
+								TP1(v.HumanoidRootPart.CFrame * Pos)
+								v.HumanoidRootPart.Size = Vector3.new(1, 1, 1)
+								v.HumanoidRootPart.Transparency = 1
+								v.Humanoid.JumpPower = 0
+								v.Humanoid.WalkSpeed = 0
+								v.HumanoidRootPart.CanCollide = false
+								PosMon = v.HumanoidRootPart.CFrame
+								MonFarm = v.Name
+								sethiddenproperty(game:GetService("Players").LocalPlayer, "SimulationRadius", math.huge)
+							until not _G.AutoFarm or not v.Parent or v.Humanoid.Health <= 0 or not game.Workspace.Enemies:FindFirstChild(v.Name)
+							StartBring = false
+						end
+					end
+				end
+			end)
+		end
+	end
+end)
+
+task.spawn(function()
+	while wait() do
 		if FarmMode == "Auto Quest" and _G.AutoFarm then
 			pcall(function()
 				CheckQuest()
-				local QuestTitle = game.Players.LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
+				local QuestTitle = game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
 				if not string.find(QuestTitle, NameMon) then
-					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
+					game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
 				end
-				if game.Players.LocalPlayer.PlayerGui.Main.Quest.Visible == false then
-					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, LevelQuest)
+				if not game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Visible then
+					game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", NameQuest, LevelQuest)
 					if BypassTP then
 						if (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - CFrameMon.Position).Magnitude > 1500 then
 							BTP(CFrameMon)
@@ -2129,11 +2166,11 @@ spawn(function()
 					else
 						TP1(CFrameMon)
 					end
-				else
-					if workspace.Enemies:FindFirstChild(Mon) then
-						for _, v in pairs(workspace.Enemies:GetChildren()) do
+				elseif game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Visible then
+					if game:GetService("Workspace").Enemies:FindFirstChild(Mon) then
+						for _, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
 							if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v.Name == Mon then
-								if string.find(game.Players.LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text, NameMon) then
+								if string.find(game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text, NameMon) then
 									repeat
 										task.wait(_G.FastAttackDelay)
 										EquipWeapon(_G.SelectWeapon)
@@ -2147,7 +2184,7 @@ spawn(function()
 										StartBring = true
 										MonFarm = v.Name
 										AttackNoCD()
-									until not _G.AutoFarm or v.Humanoid.Health <= 0 or not v.Parent or not game.Players.LocalPlayer.PlayerGui.Main.Quest.Visible
+									until not _G.AutoFarm or v.Humanoid.Health <= 0 or not v.Parent or not game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Visible
 									StartBring = false
 								end
 							end
@@ -2161,19 +2198,6 @@ spawn(function()
 		end
 	end
 end)
-
---=== AUTO FARM FAST (WORLD 1 ONLY) ===--
-if World1 then
-	TabFarm:AddToggle({
-	    Name = "Auto Farm Fast",
-	    Description = "Farm nhanh tại Sky (Lv.10 - 75)",
-	    Default = _G.AutoFarmFast,
-	    Callback = function(Value)
-	        _G.Farmfast = Value
-	        StopTween(_G.Farmfast)
-	    end
-	})
-end
 
 
 local Section = TabShop:AddSection({"Legendary Sword"})
