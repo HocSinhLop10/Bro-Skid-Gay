@@ -71,7 +71,7 @@ local alimentos = {
 	"Cooked Jellyfish", 
 	"Cooked Char", 
 	"Cooked Eel", 
-	"Cooked Shark"
+	"Cooked Shark",
     "Cooked Ribs",
     "Cooked Mackerel",
     "Cooked Salmon",
