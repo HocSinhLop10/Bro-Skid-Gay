@@ -1566,7 +1566,44 @@ function UpdateGeaESP()
 		end);
 	end;
 end;
-
+local LocalPlayer = (game:GetService("Players")).LocalPlayer;
+local originalstam = LocalPlayer.Character.Energy.Value;
+function infinitestam()
+	LocalPlayer.Character.Energy.Changed:connect(function()
+		if InfiniteEnergy then
+			LocalPlayer.Character.Energy.Value = originalstam;
+		end;
+	end);
+end;
+spawn(function()
+	pcall(function()
+		while wait(0.1) do
+			if InfiniteEnergy then
+				wait(0.1);
+				originalstam = LocalPlayer.Character.Energy.Value;
+				infinitestam();
+			end;
+		end;
+	end);
+end);
+function NoDodgeCool()
+	if nododgecool then
+		for i, v in next, getgc() do
+			if (game:GetService("Players")).LocalPlayer.Character.Dodge then
+				if typeof(v) == "function" and (getfenv(v)).script == (game:GetService("Players")).LocalPlayer.Character.Dodge then
+					for i2, v2 in next, getupvalues(v) do
+						if tostring(v2) == "0.1" then
+							repeat
+								wait(0.1);
+								setupvalue(v, i2, 0);
+							until not nododgecool;
+						end;
+					end;
+				end;
+			end;
+		end;
+	end;
+end;
 
 
 
