@@ -25,7 +25,7 @@ local TabFruit = Window:MakeTab({"Trái/Raid", "cherry"})
 
 local TabHop = Window:MakeTab({"Hop", "gem"})
 
-local TabShop = Window:MakeTab({"Stats", "signal"})
+local TabStats = Window:MakeTab({"Stats", "signal"})
 
 local TabTeleport = Window:MakeTab({"Dịch Chuyển", "locate"})
 
@@ -1974,6 +1974,8 @@ end);
 -- Các Nút Để Sử Dụng
 ---------------------------------------------------------------------------------
 
+-- Phần Farm
+
 -- 🗡️ DANH SÁCH VŨ KHÍ
 local WeaponList = {
     "Melee",
@@ -2198,6 +2200,835 @@ task.spawn(function()
 		end
 	end
 end)
+
+
+-- Phần Fruit
+
+
+
+-- Nút "Buy Random Fruit" hiển thị trước
+TabFruit:AddButton({
+    Name = "Buy Random Fruit",
+    Description = "Mua trái ác quỷ ngẫu nhiên ngay lập tức",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Cousin", "Buy")
+    end
+})
+
+-- Toggle "Auto Random Fruit" hiển thị sau
+TabFruit:AddToggle({
+    Name = "Auto Random Fruit",
+    Description = "Tự động mua trái ác quỷ ngẫu nhiên khi có đủ tiền",
+    Default = _G.Random_Auto or false,
+    Callback = function(value)
+        _G.Random_Auto = value
+        if value then
+            task.spawn(function()
+                while _G.Random_Auto do
+                    pcall(function()
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Cousin", "Buy")
+                    end)
+                    task.wait(0.5) -- thêm delay để tránh spam request
+                end
+            end)
+        end
+    end
+})
+
+
+
+-- 🍇 DANH SÁCH TRÁI ÁC QUỶ THEO ĐỘ HIẾM
+local RarityFruits = {
+	Common = { "Rocket Fruit", "Spin Fruit", "Chop Fruit", "Spring Fruit", "Bomb Fruit", "Smoke Fruit", "Spike Fruit" },
+	Uncommon = { "Flame Fruit", "Falcon Fruit", "Ice Fruit", "Sand Fruit", "Diamond Fruit", "Dark Fruit" },
+	Rare = { "Light Fruit", "Rubber Fruit", "Barrier Fruit", "Ghost Fruit", "Magma Fruit" },
+	Legendary = { "Quake Fruit", "Budha Fruit", "Love Fruit", "Spider Fruit", "Sound Fruit", "Phoenix Fruit", "Portal Fruit", "Rumble Fruit", "Pain Fruit", "Blizzard Fruit" },
+	Mythical = { "Gravity Fruit", "Mammoth Fruit", "T-Rex Fruit", "Dough Fruit", "Shadow Fruit", "Venom Fruit", "Control Fruit", "Spirit Fruit", "Dragon Fruit", "Leopard Fruit", "Kitsune Fruit" }
+}
+
+-- 🍏 CÁC LỰA CHỌN LỌC TRÁI THEO ĐỘ HIẾM
+local SelectRarityFruits = {
+	"Common - Mythical",
+	"Uncommon - Mythical",
+	"Rare - Mythical",
+	"Legendary - Mythical",
+	"Mythical"
+}
+
+-- 🧃 Biến lưu trữ
+local ResultStoreFruits = {}
+local SetRarityFruits = "Common - Mythical"
+
+-- 🧩 Dropdown chọn loại trái cần lưu
+TabFruit:AddDropdown({
+	Name = "Store Rarity Fruits",
+	Description = "Chọn độ hiếm tối thiểu của trái sẽ tự động lưu vào kho",
+	Options = SelectRarityFruits,
+	Default = SetRarityFruits,
+	Callback = function(x)
+		SetRarityFruits = x
+	end
+})
+
+-- ⚙️ Hàm kiểm tra độ hiếm
+function CheckFruits()
+	for rarity, list in pairs(RarityFruits) do
+		if SetRarityFruits == "Common - Mythical" and table.find({ "Common", "Uncommon", "Rare", "Legendary", "Mythical" }, rarity)
+		or SetRarityFruits == "Uncommon - Mythical" and table.find({ "Uncommon", "Rare", "Legendary", "Mythical" }, rarity)
+		or SetRarityFruits == "Rare - Mythical" and table.find({ "Rare", "Legendary", "Mythical" }, rarity)
+		or SetRarityFruits == "Legendary - Mythical" and table.find({ "Legendary", "Mythical" }, rarity)
+		or SetRarityFruits == "Mythical" and rarity == "Mythical" then
+			for _, fruit in ipairs(list) do
+				table.insert(ResultStoreFruits, fruit)
+			end
+		end
+	end
+end
+
+-- 🧊 Toggle Auto Store Fruit
+TabFruit:AddToggle({
+	Name = "Auto Store Fruit",
+	Description = "Tự động lưu trái ác quỷ theo độ hiếm đã chọn",
+	Default = _G.AutoStoreFruit,
+	Callback = function(value)
+		_G.AutoStoreFruit = value
+	end
+})
+
+-- 🔁 Vòng lặp auto store
+task.spawn(function()
+	while task.wait(1) do
+		pcall(function()
+			if _G.AutoStoreFruit then
+				for _, item in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+					if string.find(item.Name, "Fruit") then
+						ResultStoreFruits = {}
+						CheckFruits()
+						for _, fruit in pairs(ResultStoreFruits) do
+							if item.Name == fruit then
+								local FirstNameFruit = string.gsub(item.Name, " Fruit", "")
+								game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(
+									"StoreFruit",
+									FirstNameFruit .. "-" .. FirstNameFruit,
+									item
+								)
+							end
+						end
+					end
+				end
+			end
+		end)
+	end
+end)
+
+
+
+-- 🍉 THÔNG BÁO TRÁI ÁC QUỶ XUẤT HIỆN
+TabFruit:AddToggle({
+	Name = "Fruit Notification",
+	Description = "Hiện thông báo khi có trái ác quỷ spawn",
+	Default = _G.FruitCheck,
+	Callback = function(value)
+		_G.FruitCheck = value
+	end
+})
+
+task.spawn(function()
+	while task.wait(2) do
+		if _G.FruitCheck then
+			for _, v in pairs(workspace:GetChildren()) do
+				if string.find(v.Name, "Fruit") and v:FindFirstChild("Handle") then
+					Alert:create("🍈 Fruit Spawned: " .. v.Name)
+				end
+			end
+		end
+	end
+end)
+
+-- ⚡ TELEPORT TỚI TRÁI NGAY LẬP TỨC
+TabFruit:AddToggle({
+	Name = "Instant Teleport to Fruit",
+	Description = "Dịch chuyển ngay lập tức đến trái ác quỷ",
+	Default = _G.Grabfruit,
+	Callback = function(value)
+		_G.Grabfruit = value
+	end
+})
+
+task.spawn(function()
+	while task.wait(0.2) do
+		if _G.Grabfruit then
+			for _, v in pairs(workspace:GetChildren()) do
+				if string.find(v.Name, "Fruit") and v:FindFirstChild("Handle") then
+					game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v.Handle.CFrame
+				end
+			end
+		end
+	end
+end)
+
+-- 🌈 TWEEN ĐẾN TRÁI (DI CHUYỂN MỊN HƠN)
+TabFruit:AddToggle({
+	Name = "Tween to Fruit",
+	Description = "Di chuyển đến trái ác quỷ bằng Tween",
+	Default = _G.Tweenfruit,
+	Callback = function(value)
+		_G.Tweenfruit = value
+		StopTween(not value) -- dừng Tween khi tắt
+	end
+})
+
+task.spawn(function()
+	while task.wait(0.3) do
+		if _G.Tweenfruit then
+			for _, v in pairs(workspace:GetChildren()) do
+				if string.find(v.Name, "Fruit") and v:FindFirstChild("Handle") then
+					topos(v.Handle.CFrame)
+				end
+			end
+		end
+	end
+end)
+
+-- 🍓 GRAB TOÀN BỘ TRÁI TRONG MAP
+TabFruit:AddButton({
+	Name = "Grab All Fruits",
+	Description = "Kéo tất cả trái trong map về người bạn",
+	Callback = function()
+		for _, v in pairs(workspace:GetChildren()) do
+			if v:IsA("Tool") and v:FindFirstChild("Handle") then
+				v.Handle.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+			end
+		end
+		Alert:create("✅ Grabbed all fruits to your position!")
+	end
+})
+
+local Section = TabFruit:AddSection({"Raid"})
+
+
+if World2 then
+    TabFruit:AddButton({
+        Name = "Teleport to Lab",
+        Description = "Teleport to Raid Laboratory in Second Sea",
+        Callback = function()
+            topos(CFrame.new(-6438.73535, 250.645355, -4501.50684))
+        end
+    })
+elseif World3 then
+    TabFruit:AddButton({
+        Name = "Teleport to Lab",
+        Description = "Teleport to Raid Laboratory in Third Sea",
+        Callback = function()
+            topos(CFrame.new(-5017.40869, 314.844055, -2823.0127, -0.925743818, 0.0000000448217499, -0.378151238, 0.00000000455503146, 1, 0.000000107377559, 0.378151238, 0.000000097681621, -0.925743818))
+        end
+    })
+end
+
+
+local Section = TabFruit:AddSection({"Law Raid"})
+
+_G.autoLawRaid = _G.autoLawRaid or false
+
+TabFruit:AddToggle({
+    Name = "Auto Raid Law",
+    Description = "Tự động mua và kích hoạt Law Raid",
+    Default = _G.autoLawRaid,
+    Callback = function(state)
+        _G.autoLawRaid = state
+    end
+})
+
+-- 🌀 Luồng chính: Mua Microchip tự động
+task.spawn(function()
+    pcall(function()
+        while task.wait(0.1) do
+            if _G.autoLawRaid then
+                local plr = game:GetService("Players").LocalPlayer
+                local char = plr.Character
+                local backpack = plr.Backpack
+                local enemies = workspace.Enemies
+                local rs = game:GetService("ReplicatedStorage")
+
+                if not char:FindFirstChild("Microchip")
+                and not backpack:FindFirstChild("Microchip")
+                and not enemies:FindFirstChild("Order")
+                and not rs:FindFirstChild("Order") then
+                    task.wait(0.3)
+                    rs.Remotes.CommF_:InvokeServer("BlackbeardReward", "Microchip", "1")
+                    rs.Remotes.CommF_:InvokeServer("BlackbeardReward", "Microchip", "2")
+                end
+            end
+        end
+    end)
+end)
+
+-- ⚔️ Luồng phụ: Kích hoạt và đánh boss Law (Order)
+task.spawn(function()
+    pcall(function()
+        while task.wait(0.4) do
+            if _G.autoLawRaid then
+                local plr = game:GetService("Players").LocalPlayer
+                local char = plr.Character
+                local backpack = plr.Backpack
+                local enemies = workspace.Enemies
+                local rs = game:GetService("ReplicatedStorage")
+
+                if not enemies:FindFirstChild("Order") and not rs:FindFirstChild("Order") then
+                    if char:FindFirstChild("Microchip") or backpack:FindFirstChild("Microchip") then
+                        fireclickdetector(workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector)
+                    end
+                end
+
+                if rs:FindFirstChild("Order") or enemies:FindFirstChild("Order") then
+                    if enemies:FindFirstChild("Order") then
+                        for _, mob in pairs(enemies:GetChildren()) do
+                            if mob.Name == "Order" then
+                                repeat
+                                    task.wait(_G.FastAttackDelay)
+                                    AttackNoCD()
+                                    FastAttack = true
+                                    AutoHaki()
+                                    EquipWeapon(_G.SelectWeapon)
+                                    TP1(mob.HumanoidRootPart.CFrame * pos)
+                                    mob.HumanoidRootPart.CanCollide = false
+                                    mob.HumanoidRootPart.Size = Vector3.new(120, 120, 120)
+                                until not mob.Parent or mob.Humanoid.Health <= 0 or not _G.autoLawRaid
+                            end
+                        end
+                    elseif rs:FindFirstChild("Order") then
+                        topos(CFrame.new(-6217.2021, 28.0476, -5053.1357))
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+
+-- Phần Stats
+
+
+-- ⚙️ Tạo section cho tab Stats
+local StatsSection = TabStats:AddSection({"Auto Stats"})
+
+-- 🧭 Biến toàn cục
+_G.PointStats = 1
+_G.Melee = false
+_G.Defense = false
+_G.Sword = false
+_G.Gun = false
+_G.DemonFruit = false
+
+-- 🟢 Đặt Slider lên đầu
+TabStats:AddSlider({
+	Name = "Points To Add",
+	Min = 1,
+	Max = 100,
+	Default = 1,
+	Callback = function(value)
+		_G.PointStats = value
+	end
+})
+
+-- 🟩 Các Toggle auto add stats
+TabStats:AddToggle({
+	Name = "Auto Add Melee",
+	Default = false,
+	Callback = function(value)
+		_G.Melee = value
+	end
+})
+
+TabStats:AddToggle({
+	Name = "Auto Add Defense",
+	Default = false,
+	Callback = function(value)
+		_G.Defense = value
+	end
+})
+
+TabStats:AddToggle({
+	Name = "Auto Add Sword",
+	Default = false,
+	Callback = function(value)
+		_G.Sword = value
+	end
+})
+
+TabStats:AddToggle({
+	Name = "Auto Add Gun",
+	Default = false,
+	Callback = function(value)
+		_G.Gun = value
+	end
+})
+
+TabStats:AddToggle({
+	Name = "Auto Add Devil Fruit",
+	Default = false,
+	Callback = function(value)
+		_G.DemonFruit = value
+	end
+})
+
+-- ⚡ Auto cộng khi đủ điểm
+task.spawn(function()
+	while task.wait(0.5) do
+		pcall(function()
+			local player = game.Players.LocalPlayer
+			if player and player:FindFirstChild("Data") then
+				if player.Data.Points.Value >= _G.PointStats then
+					if _G.Melee then
+						game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", "Melee", _G.PointStats)
+					end
+					if _G.Defense then
+						game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", "Defense", _G.PointStats)
+					end
+					if _G.Sword then
+						game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", "Sword", _G.PointStats)
+					end
+					if _G.Gun then
+						game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", "Gun", _G.PointStats)
+					end
+					if _G.DemonFruit then
+						game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AddPoint", "Demon Fruit", _G.PointStats)
+					end
+				end
+			end
+		end)
+	end
+end)
+
+-- Phần Teleport
+
+local Section = TabTeleport:AddSection({"Sea"})
+
+TabTeleport:AddButton({
+    Name = "Teleport To First Sea",
+    Description = "Travel back to the First Sea (Main Island)",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelMain")
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Teleport To Second Sea",
+    Description = "Travel to the Second Sea (Dressrosa)",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelDressrosa")
+    end
+})
+
+TabTeleport:AddButton({
+    Name = "Teleport To Third Sea",
+    Description = "Travel to the Third Sea (Zou Island)",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelZou")
+    end
+})
+
+
+
+local Section = TabTeleport:AddSection({"Island"})
+
+-- 🌍 TELEPORT TAB (đổi sang dạng AddToggle hiện đại)
+if World1 then
+	TabTeleport:AddDropdown({
+		Name = "Select Island",
+		Options = {
+			"WindMill", "Marine", "Middle Town", "Jungle", "Pirate Village",
+			"Desert", "Snow Island", "MarineFord", "Colosseum",
+			"Sky Island 1", "Sky Island 2", "Sky Island 3", "Prison",
+			"Magma Village", "Under Water Island", "Fountain City",
+			"Shank Room", "Mob Island"
+		},
+		Callback = function(value)
+			_G.SelectIsland = value
+		end
+	})
+end
+
+if World2 then
+	TabTeleport:AddDropdown({
+		Name = "Select Island",
+		Options = {
+			"The Cafe", "Frist Spot", "Dark Area", "Flamingo Mansion", "Flamingo Room",
+			"Green Zone", "Factory", "Colossuim", "Zombie Island", "Two Snow Mountain",
+			"Punk Hazard", "Cursed Ship", "Ice Castle", "Forgotten Island", "Ussop Island",
+			"Mini Sky Island"
+		},
+		Callback = function(value)
+			_G.SelectIsland = value
+		end
+	})
+end
+
+if World3 then
+	TabTeleport:AddDropdown({
+		Name = "Select Island",
+		Options = {
+			"Mansion", "Port Town", "Great Tree", "Castle On The Sea", "MiniSky",
+			"Hydra Island", "Floating Turtle", "Haunted Castle", "Ice Cream Island",
+			"Peanut Island", "Cake Island", "Cocoa Island", "Candy Island", "Tiki Outpost"
+		},
+		Callback = function(value)
+			_G.SelectIsland = value
+		end
+	})
+end
+
+TabTeleport:AddToggle({
+	Name = "Teleport To Island",
+	Description = "Tween đến đảo được chọn",
+	Default = false,
+	Callback = function(value)
+		_G.TeleportIsland = value
+		if _G.TeleportIsland then
+			repeat task.wait()
+				if _G.SelectIsland == "WindMill" then
+					topos(CFrame.new(979.7989, 16.5166, 1429.0466))
+				elseif _G.SelectIsland == "Marine" then
+					topos(CFrame.new(-2566.4296, 6.8556, 2045.2561))
+				elseif _G.SelectIsland == "Middle Town" then
+					topos(CFrame.new(-690.3308, 15.0942, 1582.238))
+				elseif _G.SelectIsland == "Jungle" then
+					topos(CFrame.new(-1612.7957, 36.8520, 149.1284))
+				elseif _G.SelectIsland == "Pirate Village" then
+					topos(CFrame.new(-1181.3093, 4.7514, 3803.5456))
+				elseif _G.SelectIsland == "Desert" then
+					topos(CFrame.new(944.1578, 20.9197, 4373.3002))
+				elseif _G.SelectIsland == "Snow Island" then
+					topos(CFrame.new(1347.8067, 104.6680, -1319.7370))
+				elseif _G.SelectIsland == "MarineFord" then
+					topos(CFrame.new(-4914.8212, 50.9636, 4281.0278))
+				elseif _G.SelectIsland == "Colosseum" then
+					topos(CFrame.new(-1427.6203, 7.2881, -2792.7722))
+				elseif _G.SelectIsland == "Sky Island 1" then
+					topos(CFrame.new(-4869.1025, 733.4605, -2667.0180))
+				elseif _G.SelectIsland == "Sky Island 2" then
+					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-4607.8227, 872.5424, -1667.5568))
+				elseif _G.SelectIsland == "Sky Island 3" then
+					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-7894.6176, 5547.1416, -380.2911))
+				elseif _G.SelectIsland == "Prison" then
+					topos(CFrame.new(4875.33, 5.6519, 734.8502))
+				elseif _G.SelectIsland == "Magma Village" then
+					topos(CFrame.new(-5247.7163, 12.8839, 8504.9687))
+				elseif _G.SelectIsland == "Under Water Island" then
+					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(61163.8515, 11.6796, 1819.7841))
+				elseif _G.SelectIsland == "Fountain City" then
+					topos(CFrame.new(5127.1284, 59.5013, 4105.4458))
+				elseif _G.SelectIsland == "Shank Room" then
+					topos(CFrame.new(-1442.1655, 29.8788, -28.3547))
+				elseif _G.SelectIsland == "Mob Island" then
+					topos(CFrame.new(-2850.2006, 7.3922, 5354.9926))
+				elseif _G.SelectIsland == "The Cafe" then
+					topos(CFrame.new(-380.4792, 77.2203, 255.8255))
+				elseif _G.SelectIsland == "Frist Spot" then
+					topos(CFrame.new(-11.3114, 29.2767, 2771.5224))
+				elseif _G.SelectIsland == "Dark Area" then
+					topos(CFrame.new(3780.03, 22.6521, -3498.5859))
+				elseif _G.SelectIsland == "Flamingo Mansion" then
+					topos(CFrame.new(-483.7337, 332.0383, 595.3270))
+				elseif _G.SelectIsland == "Flamingo Room" then
+					topos(CFrame.new(2284.4140, 15.1520, 875.7253))
+				elseif _G.SelectIsland == "Green Zone" then
+					topos(CFrame.new(-2448.53, 73.0161, -3210.6306))
+				elseif _G.SelectIsland == "Factory" then
+					topos(CFrame.new(424.1269, 211.1617, -427.5404))
+				elseif _G.SelectIsland == "Colossuim" then
+					topos(CFrame.new(-1503.6224, 219.7956, 1369.3101))
+				elseif _G.SelectIsland == "Zombie Island" then
+					topos(CFrame.new(-5622.0332, 492.1960, -781.7855))
+				elseif _G.SelectIsland == "Two Snow Mountain" then
+					topos(CFrame.new(753.1428, 408.2355, -5274.6147))
+				elseif _G.SelectIsland == "Punk Hazard" then
+					topos(CFrame.new(-6127.6542, 15.9517, -5040.2861))
+				elseif _G.SelectIsland == "Cursed Ship" then
+					topos(CFrame.new(923.4019, 125.0571, 32885.875))
+				elseif _G.SelectIsland == "Ice Castle" then
+					topos(CFrame.new(6148.4116, 294.3868, -6741.1166))
+				elseif _G.SelectIsland == "Forgotten Island" then
+					topos(CFrame.new(-3032.7641, 317.8967, -10075.3730))
+				elseif _G.SelectIsland == "Ussop Island" then
+					topos(CFrame.new(4816.8618, 8.4599, 2863.8195))
+				elseif _G.SelectIsland == "Mini Sky Island" then
+					topos(CFrame.new(-288.7406, 49326.3164, -35248.5937))
+				elseif _G.SelectIsland == "Great Tree" then
+					topos(CFrame.new(2681.2736, 1682.8092, -7190.9853))
+				elseif _G.SelectIsland == "Castle On The Sea" then
+					topos(CFrame.new(-5074.4555, 314.5155, -2991.0544))
+				elseif _G.SelectIsland == "MiniSky" then
+					topos(CFrame.new(-260.6555, 49325.8046, -35253.5703))
+				elseif _G.SelectIsland == "Port Town" then
+					topos(CFrame.new(-290.7376, 6.7299, 5343.5537))
+				elseif _G.SelectIsland == "Hydra Island" then
+					topos(CFrame.new(5228.8842, 604.2340, 345.0400))
+				elseif _G.SelectIsland == "Floating Turtle" then
+					topos(CFrame.new(-13274.5283, 531.8207, -7579.2226))
+				elseif _G.SelectIsland == "Mansion" then
+					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-12471.1699, 374.9402, -7551.6777))
+				elseif _G.SelectIsland == "Haunted Castle" then
+					topos(CFrame.new(-9515.3720, 164.0062, 5786.0610))
+				elseif _G.SelectIsland == "Ice Cream Island" then
+					topos(CFrame.new(-902.5681, 79.9320, -10988.8476))
+				elseif _G.SelectIsland == "Peanut Island" then
+					topos(CFrame.new(-2062.7475, 50.4738, -10232.5683))
+				elseif _G.SelectIsland == "Cake Island" then
+					topos(CFrame.new(-1884.7747, 19.3275, -11666.8974))
+				elseif _G.SelectIsland == "Cocoa Island" then
+					topos(CFrame.new(87.9427, 73.5545, -12319.4648))
+				elseif _G.SelectIsland == "Candy Island" then
+					topos(CFrame.new(-1014.4241, 149.1106, -14555.9628))
+				elseif _G.SelectIsland == "Tiki Outpost" then
+					topos(CFrame.new(-16218.6826, 9.0863, 445.6184))
+				end
+			until not _G.TeleportIsland
+		end
+		StopTween(_G.TeleportIsland)
+	end
+})
+
+local Section = TabTeleport:AddSection({"Npc"})
+
+-- 🌍 Xác định World hiện tại
+local placeId = game.PlaceId
+local World1 = (placeId == 2753915549)
+local World2 = (placeId == 4442272183)
+local World3 = (placeId == 7449423635)
+
+-- 🧭 Dữ liệu NPC theo từng World
+local NPC_Locations = {
+	World1 = {
+		["Random Devil Fruit"] = CFrame.new(-1436.19727, 61.8777695, 4.75247526),
+		["Blox Fruits Dealer"] = CFrame.new(-923.255066, 7.67800522, 1608.61011),
+		["Remove Devil Fruit"] = CFrame.new(5664.80469, 64.677681, 867.85907),
+		["Ability Teacher"] = CFrame.new(-1057.67822, 9.65220833, 1799.49146),
+		["Dark Step"] = CFrame.new(-987.873047, 13.7778397, 3989.4978),
+		["Electro"] = CFrame.new(-5389.49561, 13.283, -2149.80151),
+		["Fishman Karate"] = CFrame.new(61581.8047, 18.8965912, 987.832703)
+	},
+	World2 = {
+		["Dargon Berath"] = CFrame.new(703.372986, 186.985519, 654.522034),
+		["Mtsterious Man"] = CFrame.new(-2574.43335, 1627.92371, -3739.35767),
+		["Mysterious Scientist"] = CFrame.new(-6437.87793, 250.645355, -4498.92773),
+		["Awakening Expert"] = CFrame.new(-408.098846, 16.0459061, 247.432846),
+		["Nerd"] = CFrame.new(-401.783722, 73.0859299, 262.306702),
+		["Bar Manager"] = CFrame.new(-385.84726, 73.0458984, 316.088806),
+		["Blox Fruits Dealer"] = CFrame.new(-450.725464, 73.0458984, 355.636902),
+		["Trevor"] = CFrame.new(-341.498322, 331.886444, 643.024963),
+		["Enhancement Editor"] = CFrame.new(-346.820221, 72.9856339, 1194.36218),
+		["Pirate Recruiter"] = CFrame.new(-428.072998, 72.9495239, 1445.32422),
+		["Marines Recruiter"] = CFrame.new(-1349.77295, 72.9853363, -1045.12964),
+		["Chemist"] = CFrame.new(-2777.45288, 72.9919434, -3572.25732),
+		["Cyborg"] = CFrame.new(629.146851, 312.307373, -531.624146),
+		["Ghoul Mark"] = CFrame.new(635.172546, 125.976357, 33219.832),
+		["Guashiem"] = CFrame.new(937.953003, 181.083359, 33277.9297),
+		["El Admin"] = CFrame.new(1322.80835, 126.345039, 33135.8789),
+		["El Rodolfo"] = CFrame.new(941.228699, 40.4686775, 32778.9922),
+		["Arowe"] = CFrame.new(-1994.51038, 125.519142, -72.2622986)
+	},
+	World3 = {
+		["Blox Fruits Dealer"] = CFrame.new(-12511, 337, -7448),
+		["Remove Devil Fruit"] = CFrame.new(-5571, 1089, -2661),
+		["Horned Man"] = CFrame.new(-11890, 931, -8760),
+		["Hungey Man"] = CFrame.new(-10919, 624, -10268),
+		["Previous Hero"] = CFrame.new(-10368, 332, -10128),
+		["Butler"] = CFrame.new(-5125, 316, -3130),
+		["Lunoven"] = CFrame.new(-5117, 316, -3093),
+		["Trevor"] = CFrame.new(-341.498322, 331.886444, 643.024963),
+		["Elite Hunter"] = CFrame.new(-5420, 314, -2828),
+		["Player Hunter"] = CFrame.new(-5559, 314, -2840),
+		["Uzoth"] = CFrame.new(-9785, 852, 6667)
+	}
+}
+
+-- 🧠 Lấy danh sách theo World
+local CurrentWorld = World1 and "World1" or World2 and "World2" or "World3"
+local CurrentList = NPC_Locations[CurrentWorld]
+local NPCNames = {}
+for k, _ in pairs(CurrentList) do
+	table.insert(NPCNames, k)
+end
+
+-- 🪄 Dropdown chọn NPC
+TabTeleport:AddDropdown({
+	Name = "Select NPC",
+	Description = "Chọn NPC muốn dịch chuyển đến",
+	Options = NPCNames,
+	Default = nil,
+	Callback = function(value)
+		_G.SelectNPC = value
+	end
+})
+
+-- 🚀 Toggle Teleport đến NPC
+TabTeleport:AddToggle({
+	Name = "Teleport To NPC",
+	Description = "Tween tới NPC đã chọn",
+	Default = _G.TeleportNPC or false,
+	Callback = function(value)
+		_G.TeleportNPC = value
+		if value then
+			repeat
+				task.wait()
+				if _G.SelectNPC and CurrentList[_G.SelectNPC] then
+					topos(CurrentList[_G.SelectNPC])
+				end
+			until not _G.TeleportNPC
+		end
+		StopTween(_G.TeleportNPC)
+	end
+})
+
+-- Phần Visual
+
+-- 🌈 ESP OPTIONS
+
+TabVisual:AddToggle({
+    Name = "ESP Player",
+    Description = "Highlight Player",
+    Default = false,
+    Callback = function(value)
+        ESPPlayer = value
+        UpdatePlayerChams()
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Chest",
+    Description = "Highlight Chest",
+    Default = false,
+    Callback = function(value)
+        ChestESP = value
+        UpdateChestChams()
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Fruit",
+    Description = "Highlight Devil Fruits trên bản đồ",
+    Default = false,
+    Callback = function(value)
+        DevilFruitESP = value
+        while DevilFruitESP do
+            wait()
+            UpdateDevilChams()
+        end
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Real Fruit",
+    Description = "Highlight Fruit thật trong thế giới",
+    Default = false,
+    Callback = function(value)
+        RealFruitESP = value
+        UpdateRealFruitChams()
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Flower",
+    Description = "Highlight Flower cho quest Race V2",
+    Default = false,
+    Callback = function(value)
+        FlowerESP = value
+        UpdateFlowerChams()
+    end
+})
+
+-- 🌺 Cập nhật ESP liên tục
+task.spawn(function()
+	while task.wait(2) do
+		if FlowerESP then UpdateFlowerChams() end
+		if DevilFruitESP then UpdateDevilChams() end
+		if ChestESP then UpdateChestChams() end
+		if ESPPlayer then UpdatePlayerChams() end
+		if RealFruitESP then UpdateRealFruitChams() end
+	end
+end)
+
+TabVisual:AddToggle({
+    Name = "ESP Island",
+    Description = "Highlight các hòn đảo xung quanh",
+    Default = IslandESP,
+    Callback = function(value)
+        IslandESP = value
+        while IslandESP do
+            wait()
+            UpdateIslandESP()
+        end
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP NPC",
+    Description = "Highlight các NPC",
+    Default = false,
+    Callback = function(value)
+        NpcESP = value
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Sea Beast",
+    Description = "Highlight Sea Beast",
+    Default = false,
+    Callback = function(value)
+        SeaESP = value
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Mob",
+    Description = "Highlight các Mob thường",
+    Default = false,
+    Callback = function(value)
+        MobESP = value
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Mirage Island",
+    Description = "Highlight Mirage Island khi xuất hiện",
+    Default = false,
+    Callback = function(value)
+        MirageIslandESP = value
+        while MirageIslandESP do
+            wait()
+            UpdateIslandMirageESP()
+        end
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Advanced Fruit Dealer",
+    Description = "Highlight Advanced Fruit Dealer",
+    Default = false,
+    Callback = function(value)
+        AfdESP = value
+        while AfdESP do
+            wait()
+            UpdateAfdESP()
+        end
+    end
+})
+
+TabVisual:AddToggle({
+    Name = "ESP Gear",
+    Description = "Highlight Gear spawn trên map",
+    Default = false,
+    Callback = function(value)
+        GearESP = value
+        while GearESP do
+            wait()
+            UpdateGeaESP()
+        end
+    end
+})
+
+-- Phần Shop
 
 
 local Section = TabShop:AddSection({"Legendary Sword"})
@@ -2682,10 +3513,217 @@ TabShop:AddButton({
 })
 
 
+-- Phần Settings
 
 
 
--- TabSettings
+local Section = TabSettings:AddSection({"Misc"})
+
+TabSettings:AddButton({
+    Name = "Open Devil Shop",
+    Description = "Mở cửa hàng trái ác quỷ",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("GetFruits")
+        game:GetService("Players").LocalPlayer.PlayerGui.Main.FruitShop.Visible = true
+    end
+})
+
+TabSettings:AddButton({
+    Name = "Open Haki Color",
+    Description = "Mở bảng màu Haki",
+    Callback = function()
+        game.Players.LocalPlayer.PlayerGui.Main.Colors.Visible = true
+    end
+})
+
+TabSettings:AddButton({
+    Name = "Open Title Name",
+    Description = "Mở danh hiệu nhân vật",
+    Callback = function()
+        local args = {
+            [1] = "getTitles"
+        }
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        game.Players.LocalPlayer.PlayerGui.Main.Titles.Visible = true
+    end
+})
+
+TabSettings:AddButton({
+    Name = "Open Inventory",
+    Description = "Mở túi vũ khí",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("getInventoryWeapons")
+        wait(1)
+        game:GetService("Players").LocalPlayer.PlayerGui.Main.Inventory.Visible = true
+    end
+})
+
+TabSettings:AddButton({
+    Name = "Open Inventory Fruit",
+    Description = "Mở kho trái ác quỷ",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("getInventoryFruits")
+        game:GetService("Players").LocalPlayer.PlayerGui.Main.FruitInventory.Visible = true
+    end
+})
+
+local Section = TabSettings:AddSection({"Teams"})
+
+TabSettings:AddButton({
+    Name = "Join Pirates Team",
+    Description = "Gia nhập phe Hải Tặc",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Pirates")
+    end
+})
+
+TabSettings:AddButton({
+    Name = "Join Marines Team",
+    Description = "Gia nhập phe Hải Quân",
+    Callback = function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("SetTeam", "Marines")
+    end
+})
+
+
+
+local Section = TabSettings:AddSection({"Codes"})
+
+-- ⚙️ TAB SETTINGS - REDEEM CODE SYSTEM
+
+local AllCodes = {
+    "KITTGAMING",
+    "ENYU_IS_PRO",
+    "FUDD10",
+    "BIGNEWS",
+    "THEGREATACE",
+    "SUB2GAMERROBOT_EXP1",
+    "STRAWHATMAIME",
+    "SUB2OFFICIALNOOBIE",
+    "SUB2NOOBMASTER123",
+    "SUB2DAIGROCK",
+    "AXIORE",
+    "TANTAIGAMIMG",
+    "STRAWHATMAINE",
+    "JCWK",
+    "FUDD10_V2",
+    "SUB2FER999",
+    "MAGICBIS",
+    "TY_FOR_WATCHING",
+    "STARCODEHEO",
+    "NOOB_REFUND",
+    "SUB2GAMERROBOT_RESET1",
+    "Sub2UncleKizaru"
+}
+
+-- 🧩 Dropdown chọn code
+TabSettings:AddDropdown({
+    Name = "Select Code",
+    Description = "Chọn code để redeem",
+    Options = AllCodes,
+    Default = nil,
+    MultiSelect = false,
+    Callback = function(value)
+        _G.CodeSelect = value
+    end
+})
+
+-- 🧩 Nút redeem code đang chọn
+TabSettings:AddButton({
+    Name = "Redeem Selected Code",
+    Description = "Dùng code bạn vừa chọn",
+    Callback = function()
+        if _G.CodeSelect then
+            game:GetService("ReplicatedStorage").Remotes.Redeem:InvokeServer(_G.CodeSelect)
+        else
+            warn("⚠️ Bạn chưa chọn code nào!")
+        end
+    end
+})
+
+-- 🧩 Nút redeem tất cả code
+TabSettings:AddButton({
+    Name = "Redeem All Codes",
+    Description = "Tự động nhập tất cả code trong danh sách",
+    Callback = function()
+        local Redeem = function(code)
+            game:GetService("ReplicatedStorage").Remotes.Redeem:InvokeServer(code)
+            task.wait(0.25) -- tránh spam quá nhanh
+        end
+
+        for _, code in pairs(AllCodes) do
+            Redeem(code)
+        end
+    end
+})
+
+
+
+local Section = TabSettings:AddSection({"Graphic"})
+
+-- ⚙️ SETTINGS TAB
+
+TabSettings:AddButton({
+    Name = "FPS Boost",
+    Description = "Giảm hiệu ứng & chất lượng để tăng FPS tối đa",
+    Callback = function()
+        local decalsyeeted = true
+        local g = game
+        local w = g.Workspace
+        local l = g.Lighting
+        local t = w.Terrain
+
+        settings().Rendering.QualityLevel = "Level01"
+
+        for i, v in pairs(g:GetDescendants()) do
+            if v:IsA("Part") or v:IsA("Union") or v:IsA("CornerWedgePart") or v:IsA("TrussPart") then
+                v.Material = "Plastic"
+                v.Reflectance = 0
+            elseif (v:IsA("Decal") or v:IsA("Texture")) and decalsyeeted then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Lifetime = NumberRange.new(0)
+            elseif v:IsA("Explosion") then
+                v.BlastPressure = 1
+                v.BlastRadius = 1
+            elseif v:IsA("Fire") or v:IsA("SpotLight") or v:IsA("Smoke") then
+                v.Enabled = false
+            end
+        end
+    end
+})
+
+TabSettings:AddButton({
+    Name = "Remove Fog",
+    Description = "Xóa toàn bộ sương mù & ánh sáng để nhìn xa hơn",
+    Callback = function()
+        local lighting = game:GetService("Lighting")
+        if lighting:FindFirstChild("LightingLayers") then
+            lighting.LightingLayers:Destroy()
+        end
+        if lighting:FindFirstChild("Sky") then
+            lighting.Sky:Destroy()
+        end
+        lighting.FogEnd = 9000000000
+    end
+})
+
+TabSettings:AddButton({
+    Name = "Remove Lava",
+    Description = "Xóa toàn bộ Lava trong map & storage",
+    Callback = function()
+        for _, v in pairs(game.Workspace:GetDescendants()) do
+            if v.Name == "Lava" then
+                v:Destroy()
+            end
+        end
+        for _, v in pairs(game.ReplicatedStorage:GetDescendants()) do
+            if v.Name == "Lava" then
+                v:Destroy()
+            end
+        end
+    end
+})
 
 local Section = TabSettings:AddSection({"Abilities"})
 
