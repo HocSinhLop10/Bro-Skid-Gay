@@ -680,7 +680,7 @@ local WeaponList = {
 }
 _G.SelectWeapon = "Melee"
 
-TabMain:AddDropdown({
+TabFarm:AddDropdown({
     Name = "Select Weapon",
     Description = "Chọn vũ khí để farm",
     Default = _G.SelectWeapon,
@@ -729,7 +729,7 @@ local FarmModeList = {
 }
 FarmMode = "Normal"
 
-TabMain:AddDropdown({
+TabFarm:AddDropdown({
     Name = "Farm Mode",
     Description = "Chọn chế độ farm (Normal / Auto Quest / Nearest)",
     Default = FarmMode,
@@ -739,7 +739,7 @@ TabMain:AddDropdown({
     end
 })
 
-TabMain:AddToggle({
+TabFarm:AddToggle({
     Name = "Auto Farm",
     Description = "Tự động farm theo chế độ được chọn",
     Default = _G.AutoFarm,
@@ -860,7 +860,7 @@ end)
 
 --=== AUTO FARM FAST (WORLD 1 ONLY) ===--
 if World1 then
-	TabMain:AddToggle({
+	TabFarm:AddToggle({
 	    Name = "Auto Farm Fast",
 	    Description = "Farm nhanh tại Sky (Lv.10 - 75)",
 	    Default = _G.AutoFarmFast,
