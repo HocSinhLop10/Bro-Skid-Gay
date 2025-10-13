@@ -2315,7 +2315,7 @@ function topos(cf)
 		if isAtTarget(cf, 3) then return end
 
 		local distance = (hrp.Position - cf.Position).Magnitude
-		local speed = 300
+		local speed = 150
 		local time = math.clamp(distance / speed, 0.05, 4)
 		local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
 
@@ -2552,7 +2552,7 @@ function topos(cf)
 		end
 
 		local distance = (hrp.Position - cf.Position).Magnitude
-		local speed = 300 -- ⚡ tốc độ mặc định
+		local speed = 150 -- ⚡ tốc độ mặc định
 		local time = math.clamp(distance / speed, 0.03, 4)
 		local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
 
