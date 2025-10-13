@@ -31,20 +31,28 @@ local TabSettings = Window:MakeTab({"Settings", "settings"})
 -- Tổng Hợp Logic
 ---------------------------------------------------------------------------------
 
+task.spawn(function()
+    repeat task.wait() until game:IsLoaded()
 
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
 
-repeat task.wait() until game:IsLoaded()
+    -- Đợi GUI câu cá xuất hiện (không chặn thread chính)
+    local Interface = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Interface", 10)
+    if not Interface then return end
 
--- 🐟 Auto chỉnh thanh câu cá khi câu
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Interface = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Interface")
-local FishingCatchFrame = Interface:WaitForChild("FishingCatchFrame")
-
-FishingCatchFrame.TimingBar.SuccessArea:GetPropertyChangedSignal("Size"):Connect(function()
-    local successArea = FishingCatchFrame.TimingBar.SuccessArea
-    successArea.Position = UDim2.new(0.5, 0, 0, 0)
-    successArea.Size = UDim2.new(1, 0, 1, 0)
+    local FishingCatchFrame = Interface:FindFirstChild("FishingCatchFrame")
+    if FishingCatchFrame and FishingCatchFrame:FindFirstChild("TimingBar") then
+        local successArea = FishingCatchFrame.TimingBar:WaitForChild("SuccessArea", 5)
+        if successArea then
+            successArea:GetPropertyChangedSignal("Size"):Connect(function()
+                pcall(function()
+                    successArea.Position = UDim2.new(0.5, 0, 0, 0)
+                    successArea.Size = UDim2.new(1, 0, 1, 0)
+                end)
+            end)
+        end
+    end
 end)
 
 -- 🌍 Services
@@ -467,6 +475,8 @@ local function bringItemsByPlayerTP(itemNames, originalPosition)
 end
 
 -- ======= End of fixed script =======
+
+
 
 ---------------------------------------------------------------------------------
 -- Phần Discord
