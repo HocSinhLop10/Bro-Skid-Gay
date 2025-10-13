@@ -1506,7 +1506,7 @@ TabTeleport:AddButton({
 local Section = TabTeleport:AddSection({"Children"})
 
 -- 🧭 Teleport to Child (Mob)
-local MobDropdown = TabTeleport:AddDropdown({
+TabTeleport:AddDropdown({
     Name = "Select Child",
     Description = "Chọn đối tượng (Mob) để dịch chuyển tới",
     Options = currentMobNames,
@@ -1566,7 +1566,7 @@ TabTeleport:AddButton({
 local Section = TabTeleport:AddSection({"Chest"})
 
 -- 💰 Teleport to Chest
-local ChestDropdown = TabTeleport:AddDropdown({
+TabTeleport:AddDropdown({
     Name = "Select Chest",
     Description = "Chọn rương (Chest) để dịch chuyển tới",
     Options = currentChestNames,
