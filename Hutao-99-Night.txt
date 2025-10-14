@@ -796,243 +796,289 @@ TabMain:AddToggle({
 
 
 
-local Section = TabMain:AddSection({"Feed"})
+-- 🌾 AUTO FARM (FULL + DẠNG NÚT CHUẨN + TabMain)
+------------------------------------------------
+repeat task.wait() until game:IsLoaded()
 
--- 🍖 AUTO FEED SYSTEM (FULL MERGED VERSION)
-------------------------------------------------------
+-- === SERVICES ===
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
--- ⚙️ Cấu hình ban đầu
-local autoFeedToggle = false
-local selectedFood = _G.SelectedFood or {}
-local hungerThreshold = _G.HungerThreshold or 75
-local alwaysFeedEnabledItems = {}
+-- === PLAYER & REFERENCES ===
+local player = Players.LocalPlayer
+local itemsFolder = Workspace:WaitForChild("Items")
+local remoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
+local remoteConsume = remoteEvents:WaitForChild("RequestConsumeItem")
 
--- 🍎 Danh sách thức ăn hợp lệ
-local alimentos = {
-    "Apple",
-    "Berry",
-    "Carrot",
-    "Cake",
-    "Chili",
-    "Cooked Clownfish", 
-    "Cooked Swordfish", 
-    "Cooked Jellyfish", 
-    "Cooked Char", 
-    "Cooked Eel", 
-    "Cooked Shark",  -- <== thêm dấu phẩy bị thiếu
-    "Cooked Ribs",
-    "Cooked Mackerel",
-    "Cooked Salmon",
-    "Cooked Morsel",
-    "Cooked Steak"
-}
+-- === POSITIONS ===
+local campfireDropPos = Vector3.new(0, 19, 0)
+local machineDropPos = Vector3.new(21, 16, -5)
 
-------------------------------------------------------
--- 🍽️ GUI: Chọn loại thức ăn
-TabMain:AddDropdown({
-    Name = "Select Food",
-    Description = "Chọn loại thức ăn bạn muốn dùng khi tự động ăn",
-    Options = alimentos,
-    Default = selectedFood,
-    Multi = true,
-    Callback = function(Value)
-        selectedFood = Value
-        _G.SelectedFood = Value
-    end
-})
+-- === ITEM LISTS ===
+local campfireFuelItems = {"Log", "Coal", "Fuel Canister", "Oil Barrel", "Biofuel"}
+local cookItems = {"Morsel", "Steak"}
+local grindItems = {"UFO Junk", "UFO Component", "Old Car Engine", "Broken Fan", "Old Microwave", "Bolt", "Log", "Cultist Gem", "Sheet Metal", "Old Radio", "Tyre", "Washing Machine", "Cultist Experiment", "Cultist Component", "Gem of the Forest Fragment", "Broken Microwave"}
+local eatFoods = {"Cooked Steak", "Cooked Morsel", "Berry", "Carrot", "Apple"}
+local biofuelItems = {"Carrot", "Cooked Morsel", "Morsel", "Steak", "Cooked Steak", "Log"}
 
-------------------------------------------------------
--- 🔢 GUI: Thanh mức độ đói sẽ tự ăn
-TabMain:AddSlider({
-    Name = "Feed Amount",
-    Description = "Tự động ăn khi thanh đói (%) thấp hơn giá trị này",
-    Min = 0,
-    Max = 100,
-    Default = hungerThreshold,
-    Callback = function(Value)
-        hungerThreshold = math.clamp(Value, 0, 100)
-        _G.HungerThreshold = hungerThreshold
-    end
-})
+------------------------------------------------
+-- ⚙️ FUNCTION: MOVE ITEM
+------------------------------------------------
+local function moveItemToPos(item, position)
+	if not item or not item:IsDescendantOf(workspace) then return end
+	local part = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart") or item:FindFirstChild("Handle")
+	if not part then return end
 
-------------------------------------------------------
--- 🤖 GUI: Toggle bật/tắt Auto Feed
-TabMain:AddToggle({
-    Name = "Auto Feed",
-    Description = "Tự động ăn thức ăn đã chọn khi đói",
-    Default = _G.AutoFeed or false,
-    Callback = function(Value)
-        autoFeedToggle = Value
-        _G.AutoFeed = Value
+	if not item.PrimaryPart then
+		pcall(function() item.PrimaryPart = part end)
+	end
 
-        if Value then
-            task.spawn(function()
-                while autoFeedToggle do
-                    task.wait(0.075)
+	pcall(function()
+		remoteEvents.RequestStartDraggingItem:FireServer(item)
+		task.wait(0.05)
+		item:SetPrimaryPartCFrame(CFrame.new(position))
+		task.wait(0.05)
+		remoteEvents.StopDraggingItem:FireServer(item)
+	end)
+end
 
-                    -- ⚠️ Kiểm tra danh sách thức ăn có hợp lệ không
-                    if type(selectedFood) ~= "table" or #selectedFood == 0 then
-                        warn("[AutoFeed] No food selected!")
-                        autoFeedToggle = false
-                        break
-                    end
-
-                    -- ⚙️ Kiểm tra điều kiện đói
-                    if ghn and feed and ghn() <= hungerThreshold then
-                        feed(selectedFood)
-                    end
-                end
-            end)
-        end
-    end
-})
-
-
-
+------------------------------------------------
+-- 🔥 AUTO CAMPFIRE (HP BASED)
+------------------------------------------------
 
 local Section = TabMain:AddSection({"Campfire"})
 
--- 🔥 AUTO UPGRADE CAMPFIRE (FULL VERSION)
-------------------------------------------------------
--- ⚙️ Cấu hình cơ bản
-local campfireFuelItems = {"Log", "Coal", "Chair", "Fuel Canister", "Oil Barrel", "Biofuel"}
-local campfireDropPos = Vector3.new(0, 19, 0)
+local autoCampfireHPEnabled = false
 
-local selectedCampfireItem = _G.SelectedCampfireItem or nil
-local autoUpgradeCampfireEnabled = _G.AutoUpgradeCampfireEnabled or false
-
--- ⚒️ Hàm di chuyển item tới vị trí Campfire
-local function moveItemToPos(item, position)
-    if item and item:IsA("Model") then
-        local primary = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-        if primary then
-            pcall(function()
-                primary.CFrame = CFrame.new(position)
-            end)
-        end
-    end
-end
-
-------------------------------------------------------
--- 🧭 GUI: Dropdown chọn vật phẩm nâng cấp
-TabMain:AddDropdown({
-    Name = "Select Campfire Item",
-    Description = "Chọn vật phẩm dùng để nâng cấp campfire",
-    Options = campfireFuelItems,
-    Default = selectedCampfireItem,
-    Multi = false,
-    AllowNone = true,
-    Callback = function(option)
-        selectedCampfireItem = option
-        _G.SelectedCampfireItem = option
-    end
-})
-
-------------------------------------------------------
--- 🔥 GUI: Toggle tự động nâng cấp Campfire
 TabMain:AddToggle({
-    Name = "Auto Upgrade Campfire",
-    Description = "Tự động thả vật phẩm đã chọn vào campfire để nâng cấp",
-    Default = autoUpgradeCampfireEnabled,
-    Callback = function(Value)
-        autoUpgradeCampfireEnabled = Value
-        _G.AutoUpgradeCampfireEnabled = Value
-
-        if Value then
-            task.spawn(function()
-                while autoUpgradeCampfireEnabled do
-                    if selectedCampfireItem then
-                        local items = {}
-
-                        -- 🔍 Tìm tất cả item trong workspace có tên trùng
-                        local itemFolder = workspace:FindFirstChild("Items")
-                        if itemFolder then
-                            for _, item in ipairs(itemFolder:GetChildren()) do
-                                if item.Name == selectedCampfireItem then
-                                    table.insert(items, item)
-                                end
-                            end
-                        end
-
-                        -- 🪵 Di chuyển tối đa 10 item đến campfire
-                        local count = math.min(10, #items)
-                        for i = 1, count do
-                            moveItemToPos(items[i], campfireDropPos)
-                        end
-                    end
-
-                    task.wait(1) -- delay giữa mỗi lần kiểm tra
-                end
-            end)
-        end
-    end
+	Name = "Auto Feed Campfire (HP Based)",
+	Description = "Tự động thả nhiên liệu khi HP campfire thấp",
+	Default = false,
+	Callback = function(Value)
+		autoCampfireHPEnabled = Value
+	end
 })
 
-
-local Section = TabMain:AddSection({"Scrap Items"})
-
--- 🍖 AUTO COOK SYSTEM (FULL MERGED VERSION)
-------------------------------------------------------
-
--- ⚙️ Biến và cấu hình
-local autocookItems = {"Morsel", "Steak", "Ribs", "Salmon", "Mackerel"}
-local autoCookEnabledItems = {}
-local autoCookEnabled = _G.AutoCookEnabled or false
-local campfireDropPos = campfireDropPos or Vector3.new(0, 19, 0)
-
-------------------------------------------------------
--- 🍗 Dropdown chọn loại thức ăn
-TabMain:AddDropdown({
-    Name = "Select Food",
-    Description = "Chọn loại thức ăn để tự động nướng tại Campfire",
-    Options = autocookItems,
-    Default = _G.SelectedAutoCookItems or {},
-    Multi = true,
-    AllowNone = true,
-    Callback = function(options)
-        _G.SelectedAutoCookItems = options
-        for _, itemName in ipairs(autocookItems) do
-            autoCookEnabledItems[itemName] = table.find(options, itemName) ~= nil
-        end
-    end
-})
-
-------------------------------------------------------
--- 🔥 Toggle bật/tắt Auto Cook
-TabMain:AddToggle({
-    Name = "Auto Cook Food",
-    Description = "Tự động nướng các loại thức ăn đã chọn",
-    Default = autoCookEnabled,
-    Callback = function(Value)
-        _G.AutoCookEnabled = Value
-        autoCookEnabled = Value
-    end
-})
-
-------------------------------------------------------
--- ♻️ Vòng lặp chính (tự động nướng)
 task.spawn(function()
-    while task.wait(0.5) do
-        if autoCookEnabled then
-            local itemsFolder = workspace:FindFirstChild("Items")
-            if not itemsFolder then
-                warn("[AutoCook] Không tìm thấy thư mục 'Items'")
-                continue
-            end
+	local campfire = Workspace:WaitForChild("Map"):WaitForChild("Campground"):WaitForChild("MainFire")
+	local fillFrame = campfire.Center.BillboardGui.Frame.Background.Fill
+	while true do
+		if autoCampfireHPEnabled then
+			local health = fillFrame.Size.X.Scale
+			if health < 0.7 then
+				repeat
+					for _, item in ipairs(itemsFolder:GetChildren()) do
+						if table.find(campfireFuelItems, item.Name) then
+							moveItemToPos(item, campfireDropPos)
+						end
+					end
+					task.wait(0.5)
+					health = fillFrame.Size.X.Scale
+				until health >= 1 or not autoCampfireHPEnabled
+			end
+		end
+		task.wait(2)
+	end
+end)
 
-            for itemName, enabled in pairs(autoCookEnabledItems) do
-                if enabled then
-                    for _, item in ipairs(itemsFolder:GetChildren()) do
-                        if item.Name == itemName then
-                            pcall(function()
-                                moveItemToPos(item, campfireDropPos)
-                            end)
-                        end
-                    end
-                end
-            end
-        end
-    end
+------------------------------------------------
+-- 🔥 AUTO CAMPFIRE (IGNORE HP)
+------------------------------------------------
+local autoCampfireAlwaysEnabled = false
+
+TabMain:AddToggle({
+	Name = "Auto Feed Campfire",
+	Description = "Tự động ném nhiên liệu vào campfire liên tục",
+	Default = false,
+	Callback = function(Value)
+		autoCampfireAlwaysEnabled = Value
+	end
+})
+
+task.spawn(function()
+	while true do
+		if autoCampfireAlwaysEnabled then
+			for _, item in ipairs(itemsFolder:GetChildren()) do
+				if table.find(campfireFuelItems, item.Name) then
+					moveItemToPos(item, campfireDropPos)
+				end
+			end
+		end
+		task.wait(2)
+	end
+end)
+
+
+local Section = TabMain:AddSection({"Cook Food"})
+
+------------------------------------------------
+-- 🍖 AUTO COOK FOOD
+------------------------------------------------
+local autoCookEnabled = false
+
+TabMain:AddToggle({
+	Name = "Auto Cook Food",
+	Description = "Tự động nấu thức ăn sống tại campfire",
+	Default = false,
+	Callback = function(Value)
+		autoCookEnabled = Value
+	end
+})
+
+task.spawn(function()
+	while true do
+		if autoCookEnabled then
+			for _, item in ipairs(itemsFolder:GetChildren()) do
+				if table.find(cookItems, item.Name) then
+					moveItemToPos(item, campfireDropPos)
+				end
+			end
+		end
+		task.wait(2)
+	end
+end)
+
+------------------------------------------------
+-- ⚙️ AUTO GRIND MACHINE
+------------------------------------------------
+
+local Section = TabMain:AddSection({"Machine Grind"})
+
+local autoGrindEnabled = false
+
+TabMain:AddToggle({
+	Name = "Auto Machine Grind",
+	Description = "Tự động đưa vật phẩm vào máy nghiền",
+	Default = false,
+	Callback = function(Value)
+		autoGrindEnabled = Value
+	end
+})
+
+task.spawn(function()
+	while true do
+		if autoGrindEnabled then
+			for _, item in ipairs(itemsFolder:GetChildren()) do
+				if table.find(grindItems, item.Name) then
+					moveItemToPos(item, machineDropPos)
+				end
+			end
+		end
+		task.wait(2.5)
+	end
+end)
+
+------------------------------------------------
+-- ⚗️ AUTO BIOFUEL PROCESSOR
+------------------------------------------------
+
+local Section = TabMain:AddSection({"Biofuel"})
+
+local autoBiofuelEnabled = false
+
+TabMain:AddToggle({
+	Name = "Auto Biofuel Processor",
+	Description = "Tự động cho vật phẩm vào Biofuel Processor",
+	Default = false,
+	Callback = function(Value)
+		autoBiofuelEnabled = Value
+	end
+})
+
+task.spawn(function()
+	local biofuelProcessorPos
+	while true do
+		if autoBiofuelEnabled then
+			if not biofuelProcessorPos then
+				local processor = Workspace:FindFirstChild("Structures") and Workspace.Structures:FindFirstChild("Biofuel Processor")
+				local part = processor and processor:FindFirstChild("Part")
+				if part then
+					biofuelProcessorPos = part.Position + Vector3.new(0, 5, 0)
+				end
+			end
+
+			if biofuelProcessorPos then
+				for _, item in ipairs(itemsFolder:GetChildren()) do
+					if table.find(biofuelItems, item.Name) then
+						moveItemToPos(item, biofuelProcessorPos)
+					end
+				end
+			end
+		end
+		task.wait(2)
+	end
+end)
+
+------------------------------------------------
+-- 🍎 AUTO EAT (INTERVAL)
+------------------------------------------------
+
+local Section = TabMain:AddSection({"Eat Food"})
+
+local autoEatEnabled = false
+
+TabMain:AddToggle({
+	Name = "Auto Eat (Every 3s)",
+	Description = "Tự động ăn ngẫu nhiên thức ăn mỗi 3 giây",
+	Default = false,
+	Callback = function(Value)
+		autoEatEnabled = Value
+	end
+})
+
+task.spawn(function()
+	while true do
+		if autoEatEnabled then
+			local available = {}
+			for _, item in ipairs(itemsFolder:GetChildren()) do
+				if table.find(eatFoods, item.Name) then
+					table.insert(available, item)
+				end
+			end
+			if #available > 0 then
+				local food = available[math.random(1, #available)]
+				pcall(function() remoteConsume:InvokeServer(food) end)
+			end
+		end
+		task.wait(3)
+	end
+end)
+
+------------------------------------------------
+-- 🍖 AUTO EAT (HP BAR BASED)
+------------------------------------------------
+local autoEatHPEnabled = false
+
+TabMain:AddToggle({
+	Name = "Auto Eat (HP Bar Based)",
+	Description = "Tự động ăn khi thanh Hunger < 50%",
+	Default = false,
+	Callback = function(Value)
+		autoEatHPEnabled = Value
+	end
+})
+
+task.spawn(function()
+	local hungerBar = player:WaitForChild("PlayerGui"):WaitForChild("Interface"):WaitForChild("StatBars"):WaitForChild("HungerBar"):WaitForChild("Bar")
+	while true do
+		if autoEatHPEnabled and hungerBar.Size.X.Scale <= 0.5 then
+			repeat
+				local available = {}
+				for _, item in ipairs(itemsFolder:GetChildren()) do
+					if table.find(eatFoods, item.Name) then
+						table.insert(available, item)
+					end
+				end
+				if #available > 0 then
+					local food = available[math.random(1, #available)]
+					pcall(function() remoteConsume:InvokeServer(food) end)
+				end
+				task.wait(1)
+			until hungerBar.Size.X.Scale >= 0.99 or not autoEatHPEnabled
+		end
+		task.wait(3)
+	end
 end)
 
 
@@ -1596,20 +1642,56 @@ TabItem:AddToggle({
 -- Phần Teleport
 ---------------------------------------------------------------------------------
 
--- 🗺️ Teleport Buttons (chuẩn Fluent GUI)
 TabTeleport:AddButton({
-    Name = "Teleport to Campfire",
-    Description = "Dịch chuyển ngay đến khu vực Campfire",
+    Name = "Teleport to Camp",
+    Description = "Dịch chuyển đến khu cắm trại",
     Callback = function()
-        tp1()
+        pcall(function()
+            local player = game:GetService("Players").LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+
+            hrp.CFrame = CFrame.new(
+                13.287363052368164, 3.999999761581421, 0.36212217807769775,
+                0.6022269129753113, -2.275036159460342e-08, 0.7983249425888062,
+                6.430457055728311e-09, 1, 2.364672191390582e-08,
+                -0.7983249425888062, -9.1070981866892e-09, 0.6022269129753113
+            )
+        end)
     end
 })
 
 TabTeleport:AddButton({
     Name = "Teleport to Stronghold",
-    Description = "Dịch chuyển đến căn cứ Stronghold",
+    Description = "Dịch chuyển đến Stronghold",
     Callback = function()
-        tp2()
+        pcall(function()
+            local player = game:GetService("Players").LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+
+            local map = workspace:FindFirstChild("Map")
+            if not map then return end
+
+            local stronghold = map:FindFirstChild("Landmarks")
+                and map.Landmarks:FindFirstChild("Stronghold")
+                and map.Landmarks.Stronghold:FindFirstChild("Functional")
+                and map.Landmarks.Stronghold.Functional:FindFirstChild("EntryDoors")
+                and map.Landmarks.Stronghold.Functional.EntryDoors:FindFirstChild("DoorRight")
+                and map.Landmarks.Stronghold.Functional.EntryDoors.DoorRight:FindFirstChild("Model")
+
+            if stronghold then
+                local children = stronghold:GetChildren()
+                local destination = children[5]
+                if destination and destination:IsA("BasePart") then
+                    hrp.CFrame = destination.CFrame + Vector3.new(0, 5, 0)
+                end
+            else
+                warn("⚠️ Không tìm thấy Stronghold trong bản đồ!")
+            end
+        end)
     end
 })
 
@@ -1650,6 +1732,1351 @@ TabTeleport:AddButton({
 
 
 
+local Section = TabTeleport:AddSection({"Chest"})
+
+------------------------------------------------------------
+-- 💎 TELEPORT TO STRONGHOLD DIAMOND CHEST
+------------------------------------------------------------
+TabTeleport:AddButton({
+    Name = "Teleport to Diamond Chest",
+    Description = "Dịch chuyển đến Stronghold Diamond Chest trong Items",
+    Callback = function()
+        local items = workspace:FindFirstChild("Items")
+        if not items then
+            warn("[❌] Items folder not found!")
+            return
+        end
+
+        local chest = items:FindFirstChild("Stronghold Diamond Chest")
+        if not chest then
+            warn("[❌] Stronghold Diamond Chest not found!")
+            return
+        end
+
+        local chestLid = chest:FindFirstChild("ChestLid")
+        if not chestLid then
+            warn("[❌] ChestLid not found!")
+            return
+        end
+
+        local diamondchest = chestLid:FindFirstChild("Meshes/diamondchest_Cube.002")
+        if not diamondchest then
+            warn("[❌] Diamond chest mesh not found!")
+            return
+        end
+
+        local player = game.Players.LocalPlayer
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = diamondchest.CFrame + Vector3.new(0, 5, 0)
+            print("[✅] Teleported to Diamond Chest successfully!")
+        else
+            warn("[❌] HumanoidRootPart not found!")
+        end
+    end
+})
+
+
+
+---------------------------------------------------------------------------------
+-- Phần Visual
+---------------------------------------------------------------------------------
+
+-- 🌟 ESP Player tự hồi phục + nhỏ gọn + có Toggle trong TabVisual
+-- ⚙️ Dán vào phần script GUI chính
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ⚙️ Cấu hình
+local CONFIG = {
+	MaxDistance = 9999,
+	UpdateRate = 0.08,
+	Font = Enum.Font.GothamMedium,
+	TextSize = 13,
+	Offset = Vector3.new(0, 2, 0),
+	TweenTime = 0.12,
+	AutoReapplyRate = 2,
+}
+
+-- ⚡ Trạng thái ESP
+local ESP_Enabled = false
+local espMap = {}
+
+-- 🎨 Màu theo phần trăm HP
+local function healthColor(percent)
+	if percent > 0.5 then
+		return Color3.fromRGB(76, 217, 100)
+	elseif percent > 0.25 then
+		return Color3.fromRGB(255, 204, 0)
+	else
+		return Color3.fromRGB(255, 64, 64)
+	end
+end
+
+-- 🧱 Tạo ESP GUI cho 1 nhân vật
+local function createESPGuiForCharacter(character, player)
+	if not character or not ESP_Enabled then return end
+	local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+	if not head then return end
+	if head:FindFirstChild("ESP_Billboard") then return head.ESP_Billboard end
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ESP_Billboard"
+	billboard.Adornee = head
+	billboard.AlwaysOnTop = true
+	billboard.Size = UDim2.new(0, 150, 0, 40)
+	billboard.StudsOffset = CONFIG.Offset
+	billboard.Parent = head
+
+	local bg = Instance.new("Frame", billboard)
+	bg.Size = UDim2.new(1, 0, 1, 0)
+	bg.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+	bg.BackgroundTransparency = 0.25
+	bg.BorderSizePixel = 0
+	Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 8)
+	local stroke = Instance.new("UIStroke", bg)
+	stroke.Thickness = 1
+	stroke.Transparency = 0.7
+
+	local nameLabel = Instance.new("TextLabel", bg)
+	nameLabel.Size = UDim2.new(1, -10, 0, 16)
+	nameLabel.Position = UDim2.new(0, 5, 0, 2)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Font = CONFIG.Font
+	nameLabel.TextSize = CONFIG.TextSize
+	nameLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.Text = player.Name
+
+	local distLabel = Instance.new("TextLabel", bg)
+	distLabel.Size = UDim2.new(0, 40, 0, 16)
+	distLabel.Position = UDim2.new(1, -45, 0, 2)
+	distLabel.BackgroundTransparency = 1
+	distLabel.Font = CONFIG.Font
+	distLabel.TextSize = CONFIG.TextSize - 1
+	distLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	distLabel.TextXAlignment = Enum.TextXAlignment.Right
+	distLabel.Text = "0m"
+
+	local hpBarBG = Instance.new("Frame", bg)
+	hpBarBG.Position = UDim2.new(0, 6, 0, 20)
+	hpBarBG.Size = UDim2.new(1, -12, 0, 14)
+	hpBarBG.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	hpBarBG.BorderSizePixel = 0
+	Instance.new("UICorner", hpBarBG).CornerRadius = UDim.new(0, 7)
+
+	local hpFill = Instance.new("Frame", hpBarBG)
+	hpFill.Size = UDim2.new(1, 0, 1, 0)
+	hpFill.BackgroundColor3 = healthColor(1)
+	hpFill.BorderSizePixel = 0
+	Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 7)
+
+	local hpText = Instance.new("TextLabel", hpBarBG)
+	hpText.Size = UDim2.new(1, 0, 1, 0)
+	hpText.BackgroundTransparency = 1
+	hpText.Font = CONFIG.Font
+	hpText.TextSize = CONFIG.TextSize - 1
+	hpText.TextColor3 = Color3.fromRGB(255, 255, 255)
+	hpText.TextStrokeTransparency = 0.5
+	hpText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	hpText.Text = "HP: 100%"
+	hpText.TextXAlignment = Enum.TextXAlignment.Center
+	hpText.TextYAlignment = Enum.TextYAlignment.Center
+
+	return {
+		Billboard = billboard,
+		Head = head,
+		Player = player,
+		Character = character,
+		HPFill = hpFill,
+		HPText = hpText,
+		DistLabel = distLabel,
+	}
+end
+
+-- 🔁 Cập nhật thanh máu
+local function updateESP(esp, localRootPos)
+	local char = esp.Character
+	if not char or not char.Parent then
+		if esp.Billboard then esp.Billboard:Destroy() end
+		return
+	end
+
+	local humanoid = char:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+
+	local hp = math.clamp(humanoid.Health, 0, humanoid.MaxHealth)
+	local percent = humanoid.MaxHealth > 0 and hp / humanoid.MaxHealth or 0
+	local percentText = math.floor(percent * 100 + 0.5)
+
+	esp.HPText.Text = string.format("HP: %d%%", percentText)
+	local dist = (esp.Head.Position - localRootPos).Magnitude
+	esp.DistLabel.Text = ("%dm"):format(math.floor(dist + 0.5))
+
+	TweenService:Create(esp.HPFill, TweenInfo.new(CONFIG.TweenTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.new(percent, 0, 1, 0),
+		BackgroundColor3 = healthColor(percent)
+	}):Play()
+end
+
+-- 🧍‍♂️ Gắn ESP cho player
+local function applyESPToPlayer(player)
+	if player == LocalPlayer or not ESP_Enabled then return end
+
+	local function setupCharacter(char)
+		if not ESP_Enabled then return end
+		local esp = createESPGuiForCharacter(char, player)
+		if esp then
+			espMap[player.UserId] = esp
+			local humanoid = char:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid.Died:Connect(function()
+					task.wait(0.5)
+					if espMap[player.UserId] then
+						espMap[player.UserId].Billboard:Destroy()
+						espMap[player.UserId] = nil
+					end
+				end)
+			end
+		end
+	end
+
+	if player.Character then setupCharacter(player.Character) end
+	player.CharacterAdded:Connect(setupCharacter)
+end
+
+-- 🧠 Tự phục hồi ESP nếu bị mất
+task.spawn(function()
+	while task.wait(CONFIG.AutoReapplyRate) do
+		if ESP_Enabled then
+			for _, p in pairs(Players:GetPlayers()) do
+				if p ~= LocalPlayer and p.Character then
+					local head = p.Character:FindFirstChild("Head") or p.Character:FindFirstChild("HumanoidRootPart")
+					if head and not head:FindFirstChild("ESP_Billboard") then
+						applyESPToPlayer(p)
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- ⏱️ Cập nhật liên tục
+RunService.Heartbeat:Connect(function()
+	if not ESP_Enabled then return end
+	local localRoot = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChild("Head"))
+	if not localRoot then return end
+	local pos = localRoot.Position
+	for _, esp in pairs(espMap) do
+		pcall(function() updateESP(esp, pos) end)
+	end
+end)
+
+-- 🟢 Thêm toggle vào TabVisual
+TabVisual:AddToggle({
+	Name = "ESP Player",
+	Description = "Hiển thị vị trí, máu của player",
+	Default = false,
+	Callback = function(value)
+		ESP_Enabled = value
+		if value then
+			for _, plr in pairs(Players:GetPlayers()) do
+				if plr ~= LocalPlayer then
+					applyESPToPlayer(plr)
+				end
+			end
+		else
+			for _, esp in pairs(espMap) do
+				if esp.Billboard then esp.Billboard:Destroy() end
+			end
+			espMap = {}
+		end
+	end
+})
+
+
+
+local Section = TabVisual:AddSection({"Item"})
+
+
+------------------------------------------------
+-- ⚙️ ESP ITEM (Drawing + Highlight)
+------------------------------------------------
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- 🎯 Danh sách item cần ESP
+local allowedItems = {
+    ["Bandage"] = true, ["Bolt"] = true, ["Broken Fan"] = true, ["Broken Microwave"] = true, ["Cake"] = true, ["Carrot"] = true,
+    ["Chair"] = true, ["Coal"] = true, ["Coin Stack"] = true, ["Cooked Morsel"] = true, ["Cooked Steak"] = true, ["Fuel Canister"] = true,
+    ["Iron Body"] = true, ["Leather Armor"] = true, ["Log"] = true, ["MadKit"] = true, ["Metal Chair"] = true, ["MedKit"] = true,
+    ["Old Car Engine"] = true, ["Old Flashlight"] = true, ["Old Radio"] = true, ["Revolver"] = true, ["Revolver Ammo"] = true,
+    ["Rifle"] = true, ["Rifle Ammo"] = true, ["Morsel"] = true, ["Sheet Metal"] = true, ["Steak"] = true, ["Tyre"] = true,
+    ["Washing Machine"] = true, ["Cultist Gem"] = true, ["Gem of the Forest Fragment"] = true, ["Frozen Shuriken"] = true,
+    ["Tactical Shotgun"] = true, ["Snowball"] = true, ["Kunai"] = true
+}
+
+------------------------------------------------
+-- 📦 Biến lưu
+------------------------------------------------
+local drawingsItem = {}
+local espConnectionItem
+local addedConnItem, removedConnItem
+local espItemEnabled = false
+
+------------------------------------------------
+-- 🧩 Hàm chính
+------------------------------------------------
+local function createOrRepairESPItem(obj, drawings, color)
+	if not obj or not obj:IsA("BasePart") then return end
+	local data = drawings[obj]
+
+	if not data then
+		local text = Drawing.new("Text")
+		text.Size = 14
+		text.Center = true
+		text.Outline = true
+		text.Visible = false
+		text.Color = color
+
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = obj
+		highlight.FillColor = color
+		highlight.OutlineColor = color
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Enabled = true
+		highlight.Parent = obj
+
+		drawings[obj] = { text = text, highlight = highlight }
+		return
+	end
+
+	if not data.text then
+		local text = Drawing.new("Text")
+		text.Size = 14
+		text.Center = true
+		text.Outline = true
+		text.Visible = false
+		text.Color = color
+		data.text = text
+	end
+
+	if (not data.highlight) or (not data.highlight.Parent) then
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = obj
+		highlight.FillColor = color
+		highlight.OutlineColor = color
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Enabled = true
+		highlight.Parent = obj
+		data.highlight = highlight
+	else
+		data.highlight.Adornee = obj
+		data.highlight.Enabled = true
+	end
+end
+
+local function removeESPItem(obj, drawings)
+	local data = drawings[obj]
+	if data then
+		pcall(function() if data.text then data.text:Remove() end end)
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+	end
+	drawings[obj] = nil
+end
+
+local function scanWorkspaceForItems(allowedList, drawings, color)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") and allowedList[obj.Name] then
+			createOrRepairESPItem(obj, drawings, color)
+		end
+	end
+end
+
+------------------------------------------------
+-- ▶️ Bật ESP
+------------------------------------------------
+local function startESPItem()
+	if espConnectionItem then return end
+	local COLOR = Color3.fromRGB(255, 255, 0)
+	scanWorkspaceForItems(allowedItems, drawingsItem, COLOR)
+
+	espConnectionItem = RunService.RenderStepped:Connect(function()
+		for obj, data in pairs(drawingsItem) do
+			createOrRepairESPItem(obj, drawingsItem, COLOR)
+			data = drawingsItem[obj]
+
+			if obj and obj.Parent then
+				local pos, onScreen = Camera:WorldToViewportPoint(obj.Position + Vector3.new(0, 1.5, 0))
+				local dist = (obj.Position - Camera.CFrame.Position).Magnitude
+				if data.text then
+					data.text.Text = string.format("%s [%.0fm]", obj.Name, dist)
+					data.text.Position = Vector2.new(pos.X, pos.Y)
+					data.text.Visible = onScreen
+				end
+				if data.highlight then
+					data.highlight.Enabled = true
+				end
+			else
+				if data.text then data.text.Visible = false end
+				if data.highlight then data.highlight.Enabled = false end
+			end
+		end
+	end)
+
+	addedConnItem = workspace.DescendantAdded:Connect(function(obj)
+		if obj:IsA("BasePart") and allowedItems[obj.Name] then
+			createOrRepairESPItem(obj, drawingsItem, COLOR)
+		end
+	end)
+
+	removedConnItem = workspace.DescendantRemoving:Connect(function(obj)
+		if drawingsItem[obj] then
+			removeESPItem(obj, drawingsItem)
+		end
+	end)
+end
+
+------------------------------------------------
+-- ⏹️ Tắt ESP
+------------------------------------------------
+local function stopESPItem()
+	if espConnectionItem then espConnectionItem:Disconnect() end
+	if addedConnItem then addedConnItem:Disconnect() end
+	if removedConnItem then removedConnItem:Disconnect() end
+	for _, data in pairs(drawingsItem) do
+		pcall(function() if data.text then data.text:Remove() end end)
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+	end
+	table.clear(drawingsItem)
+	espConnectionItem, addedConnItem, removedConnItem = nil, nil, nil
+end
+
+------------------------------------------------
+-- 🎚️ Nút toggle trong TabVisual
+------------------------------------------------
+TabVisual:AddToggle({
+	Name = "ESP Item",
+	Description = "Hiển thị vị trí vật phẩm",
+	Default = false,
+	Callback = function(Value)
+		espItemEnabled = Value
+		if Value then
+			startESPItem()
+		else
+			stopESPItem()
+		end
+	end
+})
+
+
+local Section = TabVisual:AddSection({"Weapon"})
+
+------------------------------------------------
+-- ⚙️ ESP ITEM (Drawing + Highlight màu vàng gold)
+------------------------------------------------
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- 🎯 Danh sách item cần ESP
+local allowedItemsGold = {
+    ["Revolver"] = true, ["Rifle"] = true, ["Revolver Ammo"] = true, ["Rifle Ammo"] = true,
+    ["Giant Sack"] = true, ["Good Sack"] = true,
+    ["Strong Axe"] = true, ["Good Axe"] = true,
+    ["Frozen Shuriken"] = true, ["Tactical Shotgun"] = true, ["Snowball"] = true, ["Kunai"] = true,
+    ["Leather Body"] = true, ["Poison Armour"] = true, ["Iron Body"] = true, ["Thorn Body"] = true,
+    ["Riot Shield"] = true, ["Alien Armour"] = true,
+    ["Red Key"] = true, ["Blue Key"] = true, ["Yellow Key"] = true, ["Grey Key"] = true, ["Frog Key"] = true,
+    ["Chili Seeds"] = true, ["Flower Seeds"] = true, ["Berry Seeds"] = true, ["Firefly Seeds"] = true,
+    ["Old Rod"] = true, ["Good Rod"] = true, ["Strong Rod"] = true,
+}
+
+------------------------------------------------
+-- 📦 Biến lưu
+------------------------------------------------
+local drawingsGold = {}
+local espConnectionGold
+local addedConnGold, removedConnGold
+local espGoldEnabled = false
+
+------------------------------------------------
+-- 🧩 Hàm tạo ESP item
+------------------------------------------------
+local function createOrRepairESPGold(model, drawings, color)
+	if not model or not model:IsA("Model") then return end
+	local root = model:FindFirstChild("Handle") or model:FindFirstChildWhichIsA("BasePart")
+	if not root then return end
+
+	local data = drawings[model]
+	if not data then
+		local text = Drawing.new("Text")
+		text.Size = 14
+		text.Center = true
+		text.Outline = true
+		text.Visible = false
+		text.Color = color
+
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = model
+		highlight.FillColor = color
+		highlight.OutlineColor = color
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Enabled = true
+		highlight.Parent = model
+
+		drawings[model] = { text = text, highlight = highlight }
+		return
+	end
+
+	if not data.text then
+		local text = Drawing.new("Text")
+		text.Size = 14
+		text.Center = true
+		text.Outline = true
+		text.Visible = false
+		text.Color = color
+		data.text = text
+	end
+
+	if (not data.highlight) or (not data.highlight.Parent) then
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = model
+		highlight.FillColor = color
+		highlight.OutlineColor = color
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Enabled = true
+		highlight.Parent = model
+		data.highlight = highlight
+	else
+		data.highlight.Adornee = model
+		data.highlight.Enabled = true
+	end
+end
+
+------------------------------------------------
+-- ❌ Xoá ESP item
+------------------------------------------------
+local function removeESPGold(model, drawings)
+	local data = drawings[model]
+	if data then
+		pcall(function() if data.text then data.text:Remove() end end)
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+	end
+	drawings[model] = nil
+end
+
+------------------------------------------------
+-- 🔍 Quét workspace tìm item
+------------------------------------------------
+local function scanWorkspaceForGoldItems(allowedList, drawings, color)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and allowedList[obj.Name] and (obj:FindFirstChild("Handle") or obj:FindFirstChildWhichIsA("BasePart")) then
+			createOrRepairESPGold(obj, drawings, color)
+		end
+	end
+end
+
+------------------------------------------------
+-- ▶️ Bắt đầu ESP
+------------------------------------------------
+local function startESPGold()
+	if espConnectionGold then return end
+	local COLOR = Color3.fromRGB(255, 215, 0) -- 💛 Màu vàng gold
+	scanWorkspaceForGoldItems(allowedItemsGold, drawingsGold, COLOR)
+
+	espConnectionGold = RunService.RenderStepped:Connect(function()
+		for model, data in pairs(drawingsGold) do
+			createOrRepairESPGold(model, drawingsGold, COLOR)
+			data = drawingsGold[model]
+
+			if model.Parent then
+				local root = model:FindFirstChild("Handle") or model:FindFirstChildWhichIsA("BasePart")
+				if root then
+					local pos, onScreen = Camera:WorldToViewportPoint(root.Position + Vector3.new(0, 1.5, 0))
+					local dist = (root.Position - Camera.CFrame.Position).Magnitude
+
+					if data.text then
+						data.text.Text = string.format("%s [%.0fm]", model.Name, dist)
+						data.text.Position = Vector2.new(pos.X, pos.Y)
+						data.text.Visible = onScreen
+					end
+
+					if data.highlight then
+						data.highlight.Enabled = true
+					end
+				end
+			else
+				if data.text then data.text.Visible = false end
+				if data.highlight then data.highlight.Enabled = false end
+			end
+		end
+	end)
+
+	addedConnGold = workspace.DescendantAdded:Connect(function(obj)
+		local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+		if model and allowedItemsGold[model.Name] then
+			createOrRepairESPGold(model, drawingsGold, COLOR)
+		end
+	end)
+
+	removedConnGold = workspace.DescendantRemoving:Connect(function(obj)
+		local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+		if model and drawingsGold[model] then
+			removeESPGold(model, drawingsGold)
+		end
+	end)
+end
+
+------------------------------------------------
+-- ⏹️ Dừng ESP
+------------------------------------------------
+local function stopESPGold()
+	if espConnectionGold then espConnectionGold:Disconnect() end
+	if addedConnGold then addedConnGold:Disconnect() end
+	if removedConnGold then removedConnGold:Disconnect() end
+	for _, data in pairs(drawingsGold) do
+		pcall(function() if data.text then data.text:Remove() end end)
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+	end
+	table.clear(drawingsGold)
+	espConnectionGold, addedConnGold, removedConnGold = nil, nil, nil
+end
+
+------------------------------------------------
+-- 🎚️ Toggle trong TabVisual
+------------------------------------------------
+TabVisual:AddToggle({
+	Name = "ESP Weapon",
+	Description = "Hiển thị vị trí và khoảng cách của vũ khí",
+	Default = false,
+	Callback = function(Value)
+		espGoldEnabled = Value
+		if Value then
+			startESPGold()
+		else
+			stopESPGold()
+		end
+	end
+})
+
+local Section = TabVisual:AddSection({"Mob"})
+
+
+------------------------------------------------
+-- ⚙️ ESP MOB (Drawing + Highlight màu xanh lá)
+------------------------------------------------
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- 🎯 Danh sách mob cần ESP
+local allowedMobs = {
+	["Bunny"] = true, ["Wolf"] = true, ["Alpha Wolf"] = true, ["Bear"] = true,
+	["Crossbow Cultist"] = true, ["Alien"] = true, ["Alien Elite"] = true,
+	["Polar Bear"] = true, ["Arctic Fox"] = true, ["Mammoth"] = true,
+	["Cultist"] = true, ["Cultist Melee"] = true, ["Cultist Crossbow"] = true,
+	["Cultist Juggernaut"] = true,
+}
+
+------------------------------------------------
+-- 📦 Biến lưu
+------------------------------------------------
+local drawingsMob = {}
+local espConnectionMob
+local addedConnMob, removedConnMob
+local espMobEnabled = false
+
+------------------------------------------------
+-- 🧩 Hàm tạo / khôi phục ESP
+------------------------------------------------
+local function createOrRepairESPMob(model, drawings, color)
+	if not model or not model:IsA("Model") then return end
+	local hrp = model:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	local data = drawings[model]
+	if not data then
+		local text = Drawing.new("Text")
+		text.Size = 14
+		text.Center = true
+		text.Outline = true
+		text.Visible = false
+		text.Color = color
+
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = model
+		highlight.FillColor = color
+		highlight.OutlineColor = color
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Enabled = true
+		highlight.Parent = model
+
+		drawings[model] = { text = text, highlight = highlight }
+		return
+	end
+
+	if not data.text then
+		local text = Drawing.new("Text")
+		text.Size = 14
+		text.Center = true
+		text.Outline = true
+		text.Visible = false
+		text.Color = color
+		data.text = text
+	end
+
+	if (not data.highlight) or (not data.highlight.Parent) then
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+		local highlight = Instance.new("Highlight")
+		highlight.Adornee = model
+		highlight.FillColor = color
+		highlight.OutlineColor = color
+		highlight.FillTransparency = 0.7
+		highlight.OutlineTransparency = 0
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		highlight.Enabled = true
+		highlight.Parent = model
+		data.highlight = highlight
+	else
+		data.highlight.Adornee = model
+		data.highlight.Enabled = true
+	end
+end
+
+------------------------------------------------
+-- ❌ Xoá ESP
+------------------------------------------------
+local function removeESPMob(model, drawings)
+	local data = drawings[model]
+	if data then
+		pcall(function() if data.text then data.text:Remove() end end)
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+	end
+	drawings[model] = nil
+end
+
+------------------------------------------------
+-- 🔍 Quét workspace tìm mob
+------------------------------------------------
+local function scanWorkspaceForMobs(allowedList, drawings, color)
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and allowedList[obj.Name] and obj:FindFirstChild("HumanoidRootPart") then
+			createOrRepairESPMob(obj, drawings, color)
+		end
+	end
+end
+
+------------------------------------------------
+-- ▶️ Bắt đầu ESP
+------------------------------------------------
+local function startESPMob()
+	if espConnectionMob then return end
+	local COLOR = Color3.fromRGB(0, 255, 0) -- 💚 Xanh lá cây
+	scanWorkspaceForMobs(allowedMobs, drawingsMob, COLOR)
+
+	espConnectionMob = RunService.RenderStepped:Connect(function()
+		for model, data in pairs(drawingsMob) do
+			createOrRepairESPMob(model, drawingsMob, COLOR)
+			data = drawingsMob[model]
+
+			if model.Parent and model:FindFirstChild("HumanoidRootPart") then
+				local hrp = model.HumanoidRootPart
+				local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0))
+				local dist = (hrp.Position - Camera.CFrame.Position).Magnitude
+
+				if data.text then
+					data.text.Text = string.format("%s [%.0fm]", model.Name, dist)
+					data.text.Position = Vector2.new(pos.X, pos.Y)
+					data.text.Visible = onScreen
+				end
+
+				if data.highlight then
+					data.highlight.Enabled = true
+				end
+			else
+				if data.text then data.text.Visible = false end
+				if data.highlight then data.highlight.Enabled = false end
+			end
+		end
+	end)
+
+	addedConnMob = workspace.DescendantAdded:Connect(function(obj)
+		local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+		if model and allowedMobs[model.Name] then
+			createOrRepairESPMob(model, drawingsMob, COLOR)
+		end
+	end)
+
+	removedConnMob = workspace.DescendantRemoving:Connect(function(obj)
+		local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+		if model and drawingsMob[model] then
+			removeESPMob(model, drawingsMob)
+		end
+	end)
+end
+
+------------------------------------------------
+-- ⏹️ Dừng ESP
+------------------------------------------------
+local function stopESPMob()
+	if espConnectionMob then espConnectionMob:Disconnect() end
+	if addedConnMob then addedConnMob:Disconnect() end
+	if removedConnMob then removedConnMob:Disconnect() end
+	for _, data in pairs(drawingsMob) do
+		pcall(function() if data.text then data.text:Remove() end end)
+		pcall(function() if data.highlight then data.highlight:Destroy() end end)
+	end
+	table.clear(drawingsMob)
+	espConnectionMob, addedConnMob, removedConnMob = nil, nil, nil
+end
+
+------------------------------------------------
+-- 🎚️ Toggle trong TabVisual
+------------------------------------------------
+TabVisual:AddToggle({
+	Name = "ESP Mob",
+	Description = "Hiển thị vị trí của các con vật",
+	Default = false,
+	Callback = function(Value)
+		espMobEnabled = Value
+		if Value then
+			startESPMob()
+		else
+			stopESPMob()
+		end
+	end
+})
+
+
+
+local Section = TabVisual:AddSection({"Food"})
+
+
+------------------------------------------------------------
+-- 🧡 ESP FOOD (Cam) – highlight & text hiển thị khoảng cách
+------------------------------------------------------------
+
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- Danh sách item thức ăn cần hiển thị ESP
+local allowedFoods = {
+    ["Cake"] = true, ["Cooked Steak"] = true, ["Cooked Morsel"] = true, ["Ribs"] = true,
+    ["Salmon"] = true, ["Cooked Salmon"] = true, ["Cooked Ribs"] = true, ["Mackerel"] = true,
+    ["Cooked Mackerel"] = true, ["Steak"] = true, ["Morsel"] = true, ["Berry"] = true,
+    ["Carrot"] = true, ["Stew"] = true, ["Hearty Stew"] = true, ["Corn"] = true,
+    ["Pumpkin"] = true, ["Meat? Sandwich"] = true, ["Seafood Chowder"] = true,
+    ["Steak Dinner"] = true, ["Pumpkin Soup"] = true, ["BBQ Ribs"] = true,
+    ["Carrot Cake"] = true, ["Jar o' Jelly"] = true, ["Clownfish"] = true,
+    ["Swordfish"] = true, ["Jellyfish"] = true, ["Char"] = true, ["Eel"] = true, ["Shark"] = true,
+    ["Cooked Clownfish"] = true, ["Cooked Swordfish"] = true, ["Cooked Jellyfish"] = true,
+    ["Cooked Char"] = true, ["Cooked Eel"] = true, ["Cooked Shark"] = true,
+}
+
+-- Bộ chứa ESP hiện có
+local drawingsFood = {}
+local espConnFood, addedConnFood, removedConnFood
+
+-- Hàm tạo hoặc khôi phục ESP
+local function createOrRepairESPFood(obj, drawings, color)
+    if not obj then return end
+    local data = drawings[obj]
+    if not data then
+        -- Xác định vị trí trung tâm
+        local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+        if not part then return end
+
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+        text.Color = color
+
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+
+        drawings[obj] = { text = text, highlight = highlight }
+        return
+    end
+
+    -- Nếu ESP bị mất thì hồi phục
+    if not data.text then
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+        text.Color = color
+        data.text = text
+    end
+    if (not data.highlight) or (not data.highlight.Parent) then
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+        data.highlight = highlight
+    end
+end
+
+-- Xoá ESP
+local function removeESPFood(obj, drawings)
+    local data = drawings[obj]
+    if data then
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    drawings[obj] = nil
+end
+
+-- Quét workspace tạo ESP ban đầu
+local function scanWorkspaceForFoods(allowedList, drawings, color)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and allowedList[obj.Name] then
+            createOrRepairESPFood(obj, drawings, color)
+        end
+    end
+end
+
+-- 🔥 Bắt đầu ESP
+local function startESPFood()
+    if espConnFood then return end
+
+    local COLOR = Color3.fromRGB(255, 128, 0) -- 🧡 màu cam
+    scanWorkspaceForFoods(allowedFoods, drawingsFood, COLOR)
+
+    espConnFood = RunService.RenderStepped:Connect(function()
+        for obj, data in pairs(drawingsFood) do
+            createOrRepairESPFood(obj, drawingsFood, COLOR)
+            data = drawingsFood[obj]
+
+            local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+            if obj.Parent and part then
+                local pos, onScreen = Camera:WorldToViewportPoint(part.Position + Vector3.new(0, 1.5, 0))
+                local dist = (part.Position - Camera.CFrame.Position).Magnitude
+
+                if data.text then
+                    data.text.Text = string.format("%s [%.0fm]", obj.Name, dist)
+                    data.text.Position = Vector2.new(pos.X, pos.Y)
+                    data.text.Visible = onScreen
+                end
+                if data.highlight then
+                    data.highlight.Enabled = true
+                end
+            else
+                if data.text then data.text.Visible = false end
+                if data.highlight then data.highlight.Enabled = false end
+            end
+        end
+    end)
+
+    addedConnFood = workspace.DescendantAdded:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and allowedFoods[model.Name] then
+            createOrRepairESPFood(model, drawingsFood, COLOR)
+        end
+    end)
+
+    removedConnFood = workspace.DescendantRemoving:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and drawingsFood[model] then
+            removeESPFood(model, drawingsFood)
+        end
+    end)
+end
+
+-- 🛑 Dừng ESP
+local function stopESPFood()
+    if espConnFood then espConnFood:Disconnect() end
+    if addedConnFood then addedConnFood:Disconnect() end
+    if removedConnFood then removedConnFood:Disconnect() end
+    for _, data in pairs(drawingsFood) do
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    table.clear(drawingsFood)
+    espConnFood, addedConnFood, removedConnFood = nil, nil, nil
+end
+
+-- 📌 Toggle ESP Food
+TabVisual:AddToggle({
+    Name = "ESP Food",
+    Description = "Hiển thị các vật phẩm ăn được",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            startESPFood()
+        else
+            stopESPFood()
+        end
+    end
+})
+
+
+
+local Section = TabVisual:AddSection({"Junk"})
+
+------------------------------------------------------------
+-- 💎 ESP JUNK ITEMS (Xanh lơ) – highlight & text khoảng cách
+------------------------------------------------------------
+
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- Danh sách đồ phế liệu
+local allowedJunkItems = {
+    ["Bolt"] = true, ["Sheet Metal"] = true, ["UFO Junk"] = true, ["UFO Component"] = true,
+    ["Broken Fan"] = true, ["Old Radio"] = true, ["Broken Microwave"] = true, ["Tyre"] = true,
+    ["Metal Chair"] = true, ["Old Car Engine"] = true, ["Washing Machine"] = true,
+    ["Cultist Experiment"] = true, ["Cultist Prototype"] = true, ["UFO Scrap"] = true,
+    ["Cultist Gem"] = true, ["Gem of the Forest Fragment"] = true, ["Feather"] = true,
+    ["Old Boot"] = true
+}
+
+-- Bộ chứa ESP
+local drawingsJunk = {}
+local espConnJunk, addedConnJunk, removedConnJunk
+
+-- Hàm tạo hoặc hồi phục ESP
+local function createOrRepairESPJunk(obj, drawings, color)
+    if not obj then return end
+    local data = drawings[obj]
+    if not data then
+        local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+        if not part then return end
+
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+        text.Color = color
+
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+
+        drawings[obj] = { text = text, highlight = highlight }
+        return
+    end
+
+    -- Hồi phục nếu mất
+    if not data.text then
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+        text.Color = color
+        data.text = text
+    end
+    if (not data.highlight) or (not data.highlight.Parent) then
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+        data.highlight = highlight
+    end
+end
+
+-- Xoá ESP
+local function removeESPJunk(obj, drawings)
+    local data = drawings[obj]
+    if data then
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    drawings[obj] = nil
+end
+
+-- Quét workspace tạo ESP ban đầu
+local function scanWorkspaceForJunk(allowedList, drawings, color)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and allowedList[obj.Name] then
+            createOrRepairESPJunk(obj, drawings, color)
+        end
+    end
+end
+
+-- 🔥 Bắt đầu ESP Junk
+local function startESPJunk()
+    if espConnJunk then return end
+
+    local COLOR = Color3.fromRGB(0, 255, 255) -- 💎 xanh lơ
+    scanWorkspaceForJunk(allowedJunkItems, drawingsJunk, COLOR)
+
+    espConnJunk = RunService.RenderStepped:Connect(function()
+        for obj, data in pairs(drawingsJunk) do
+            createOrRepairESPJunk(obj, drawingsJunk, COLOR)
+            data = drawingsJunk[obj]
+
+            local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+            if obj.Parent and part then
+                local pos, onScreen = Camera:WorldToViewportPoint(part.Position + Vector3.new(0, 1.5, 0))
+                local dist = (part.Position - Camera.CFrame.Position).Magnitude
+
+                if data.text then
+                    data.text.Text = string.format("%s [%.0fm]", obj.Name, dist)
+                    data.text.Position = Vector2.new(pos.X, pos.Y)
+                    data.text.Visible = onScreen
+                end
+                if data.highlight then
+                    data.highlight.Enabled = true
+                end
+            else
+                if data.text then data.text.Visible = false end
+                if data.highlight then data.highlight.Enabled = false end
+            end
+        end
+    end)
+
+    addedConnJunk = workspace.DescendantAdded:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and allowedJunkItems[model.Name] then
+            createOrRepairESPJunk(model, drawingsJunk, COLOR)
+        end
+    end)
+
+    removedConnJunk = workspace.DescendantRemoving:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and drawingsJunk[model] then
+            removeESPJunk(model, drawingsJunk)
+        end
+    end)
+end
+
+-- 🛑 Dừng ESP Junk
+local function stopESPJunk()
+    if espConnJunk then espConnJunk:Disconnect() end
+    if addedConnJunk then addedConnJunk:Disconnect() end
+    if removedConnJunk then removedConnJunk:Disconnect() end
+    for _, data in pairs(drawingsJunk) do
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    table.clear(drawingsJunk)
+    espConnJunk, addedConnJunk, removedConnJunk = nil, nil, nil
+end
+
+-- 📌 Toggle ESP Junk
+TabVisual:AddToggle({
+    Name = "ESP Junk",
+    Description = "Hiển thị các vật phẩm phế liệu",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            startESPJunk()
+        else
+            stopESPJunk()
+        end
+    end
+})
+
+
+local Section = TabVisual:AddSection({"Heal"})
+
+------------------------------------------------------------
+-- ❤️ ESP HEAL ITEMS (Đỏ)
+------------------------------------------------------------
+
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- Danh sách đồ hồi máu
+local healItems = {
+    ["Bandage"] = true,
+    ["MedKit"] = true
+}
+
+-- Bộ chứa ESP
+local drawingsHeal = {}
+local espConnHeal, addedConnHeal, removedConnHeal
+
+-- Hàm tạo hoặc hồi phục ESP
+local function createOrRepairESPHeal(obj, drawings, color)
+    if not obj then return end
+    local data = drawings[obj]
+    if not data then
+        local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+        if not part then return end
+
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+        text.Color = color
+
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+
+        drawings[obj] = { text = text, highlight = highlight }
+        return
+    end
+
+    -- Hồi phục nếu bị mất
+    if not data.text then
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+        text.Color = color
+        data.text = text
+    end
+    if (not data.highlight) or (not data.highlight.Parent) then
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+        data.highlight = highlight
+    end
+end
+
+-- Xoá ESP
+local function removeESPHeal(obj, drawings)
+    local data = drawings[obj]
+    if data then
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    drawings[obj] = nil
+end
+
+-- Quét workspace tạo ESP ban đầu
+local function scanWorkspaceForHeal(allowedList, drawings, color)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and allowedList[obj.Name] then
+            createOrRepairESPHeal(obj, drawings, color)
+        end
+    end
+end
+
+-- 🔥 Bắt đầu ESP Heal
+local function startESPHeal()
+    if espConnHeal then return end
+
+    local COLOR = Color3.fromRGB(255, 0, 0) -- ❤️ đỏ
+    scanWorkspaceForHeal(healItems, drawingsHeal, COLOR)
+
+    espConnHeal = RunService.RenderStepped:Connect(function()
+        for obj, data in pairs(drawingsHeal) do
+            createOrRepairESPHeal(obj, drawingsHeal, COLOR)
+            data = drawingsHeal[obj]
+
+            local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+            if obj.Parent and part then
+                local pos, onScreen = Camera:WorldToViewportPoint(part.Position + Vector3.new(0, 1.5, 0))
+                local dist = (part.Position - Camera.CFrame.Position).Magnitude
+
+                if data.text then
+                    data.text.Text = string.format("%s [%.0fm]", obj.Name, dist)
+                    data.text.Position = Vector2.new(pos.X, pos.Y)
+                    data.text.Visible = onScreen
+                end
+                if data.highlight then
+                    data.highlight.Enabled = true
+                end
+            else
+                if data.text then data.text.Visible = false end
+                if data.highlight then data.highlight.Enabled = false end
+            end
+        end
+    end)
+
+    addedConnHeal = workspace.DescendantAdded:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and healItems[model.Name] then
+            createOrRepairESPHeal(model, drawingsHeal, COLOR)
+        end
+    end)
+
+    removedConnHeal = workspace.DescendantRemoving:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and drawingsHeal[model] then
+            removeESPHeal(model, drawingsHeal)
+        end
+    end)
+end
+
+-- 🛑 Dừng ESP Heal
+local function stopESPHeal()
+    if espConnHeal then espConnHeal:Disconnect() end
+    if addedConnHeal then addedConnHeal:Disconnect() end
+    if removedConnHeal then removedConnHeal:Disconnect() end
+    for _, data in pairs(drawingsHeal) do
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    table.clear(drawingsHeal)
+    espConnHeal, addedConnHeal, removedConnHeal = nil, nil, nil
+end
+
+-- 📌 Toggle ESP Heal
+TabVisual:AddToggle({
+    Name = "ESP Heal",
+    Description = "Hiển thị vị trí đồ hồi máu",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            startESPHeal()
+        else
+            stopESPHeal()
+        end
+    end
+})
 
 
 ---------------------------------------------------------------------------------
