@@ -2569,6 +2569,181 @@ end
 
 
 
+
+------------------------------------------------------------
+-- 🌈 ESP LOST CHILD (7 MÀU)
+------------------------------------------------------------
+
+do
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
+
+-- Danh sách Lost Child
+local lostChilds = {
+    ["Lost Child"] = true,
+    ["Lost Child2"] = true,
+    ["Lost Child3"] = true,
+    ["Lost Child4"] = true
+}
+
+-- Bộ chứa ESP
+local drawingsLostChild = {}
+local espConnLostChild, addedConnLostChild, removedConnLostChild
+
+-- ⚙️ Hàm tạo hoặc hồi phục ESP
+local function createOrRepairESPLostChild(obj, drawings)
+    if not obj then return end
+    local data = drawings[obj]
+    if not data then
+        local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+        if not part then return end
+
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+
+        -- Highlight
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+
+        drawings[obj] = {
+            text = text,
+            highlight = highlight,
+            hue = math.random() -- màu ngẫu nhiên ban đầu
+        }
+        return
+    end
+
+    -- Hồi phục nếu bị mất
+    if not data.text then
+        local text = Drawing.new("Text")
+        text.Size = 14
+        text.Center = true
+        text.Outline = true
+        text.Visible = false
+        data.text = text
+    end
+    if (not data.highlight) or (not data.highlight.Parent) then
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+        local highlight = Instance.new("Highlight")
+        highlight.Adornee = obj
+        highlight.FillTransparency = 0.7
+        highlight.OutlineTransparency = 0
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.Enabled = true
+        highlight.Parent = obj
+        data.highlight = highlight
+    end
+end
+
+-- ❌ Xoá ESP
+local function removeESPLostChild(obj, drawings)
+    local data = drawings[obj]
+    if data then
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    drawings[obj] = nil
+end
+
+-- 🔍 Quét workspace ban đầu
+local function scanWorkspaceForLostChild(allowedList, drawings)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and allowedList[obj.Name] then
+            createOrRepairESPLostChild(obj, drawings)
+        end
+    end
+end
+
+-- 🌈 Bắt đầu ESP Lost Child
+local function startESPLostChild()
+    if espConnLostChild then return end
+
+    scanWorkspaceForLostChild(lostChilds, drawingsLostChild)
+
+    espConnLostChild = RunService.RenderStepped:Connect(function()
+        for obj, data in pairs(drawingsLostChild) do
+            createOrRepairESPLostChild(obj, drawingsLostChild)
+            data = drawingsLostChild[obj]
+
+            local part = obj:FindFirstChildWhichIsA("BasePart") or obj:FindFirstChild("Handle")
+            if obj.Parent and part then
+                -- Cập nhật màu cầu vồng
+                data.hue = (data.hue + 0.005) % 1
+                local color = Color3.fromHSV(data.hue, 1, 1)
+                data.text.Color = color
+                if data.highlight then
+                    data.highlight.FillColor = color
+                    data.highlight.OutlineColor = color
+                end
+
+                -- Hiển thị
+                local pos, onScreen = Camera:WorldToViewportPoint(part.Position + Vector3.new(0, 1.5, 0))
+                local dist = (part.Position - Camera.CFrame.Position).Magnitude
+
+                if data.text then
+                    data.text.Text = string.format("%s [%.0fm]", obj.Name, dist)
+                    data.text.Position = Vector2.new(pos.X, pos.Y)
+                    data.text.Visible = onScreen
+                end
+            else
+                if data.text then data.text.Visible = false end
+                if data.highlight then data.highlight.Enabled = false end
+            end
+        end
+    end)
+
+    addedConnLostChild = workspace.DescendantAdded:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and lostChilds[model.Name] then
+            createOrRepairESPLostChild(model, drawingsLostChild)
+        end
+    end)
+
+    removedConnLostChild = workspace.DescendantRemoving:Connect(function(obj)
+        local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+        if model and drawingsLostChild[model] then
+            removeESPLostChild(model, drawingsLostChild)
+        end
+    end)
+end
+
+-- 🛑 Dừng ESP Lost Child
+local function stopESPLostChild()
+    if espConnLostChild then espConnLostChild:Disconnect() end
+    if addedConnLostChild then addedConnLostChild:Disconnect() end
+    if removedConnLostChild then removedConnLostChild:Disconnect() end
+    for _, data in pairs(drawingsLostChild) do
+        pcall(function() if data.text then data.text:Remove() end end)
+        pcall(function() if data.highlight then data.highlight:Destroy() end end)
+    end
+    table.clear(drawingsLostChild)
+    espConnLostChild, addedConnLostChild, removedConnLostChild = nil, nil, nil
+end
+
+-- 📌 Toggle ESP Lost Child
+TabVisual:AddToggle({
+    Name = "ESP Lost Child",
+    Description = "Hiển thị vị trí của trẻ em mất tích",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            startESPLostChild()
+        else
+            stopESPLostChild()
+        end
+    end
+})
+end
+
+
 ------------------------------------------------------------
 -- 🧡 ESP FOOD (Cam) – highlight & text hiển thị khoảng cách
 ------------------------------------------------------------
