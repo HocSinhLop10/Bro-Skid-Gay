@@ -803,6 +803,208 @@ TabMain:AddToggle({
 -- Phần Player
 ---------------------------------------------------------------------------------
 
+-- 🌟 Nút Đi Xuyên Tường (NoClip)
+TabPlayer:AddToggle({
+    Name = "Noclip",
+    Description = "Cho phép nhân vật đi xuyên qua mọi vật thể",
+    Default = false,
+    Callback = function(Value)
+        _G.NoClip = Value
+        
+        if Value then
+            -- Bật NoClip
+            task.spawn(function()
+                local player = game.Players.LocalPlayer
+                local char = player.Character or player.CharacterAdded:Wait()
+
+                while _G.NoClip and task.wait() do
+                    for _, part in pairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") and part.CanCollide then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        else
+            -- Tắt NoClip -> bật lại va chạm
+            local player = game.Players.LocalPlayer
+            local char = player.Character
+            if char then
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+})
+
+
+
+local UserInputService = game:GetService("UserInputService")
+_G.InfJump = false
+
+TabPlayer:AddToggle({
+    Name = "Infinite Jump",
+    Description = "Cho phép nhảy không giới hạn giữa không trung",
+    Default = false,
+    Callback = function(Value)
+        _G.InfJump = Value
+    end
+})
+
+UserInputService.JumpRequest:Connect(function()
+    if _G.InfJump then
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChildOfClass("Humanoid") then
+            char:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+        end
+    end
+end)
+
+
+
+
+
+local Section = TabPlayer:AddSection({"Speed"})
+
+
+-- ⚡️ Nút Bật/Tắt + Thanh Trượt Tốc Độ Chạy
+_G.WalkSpeedEnabled = false
+_G.WalkSpeed = 16 -- mặc định Roblox
+
+-- 🟢 Toggle bật/tắt tăng tốc độ
+TabPlayer:AddToggle({
+    Name = "Walk Speed",
+    Description = "Bật để thay đổi tốc độ di chuyển theo thanh trượt",
+    Default = false,
+    Callback = function(Value)
+        _G.WalkSpeedEnabled = Value
+
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+        if Value then
+            -- Bật tăng tốc
+            task.spawn(function()
+                while _G.WalkSpeedEnabled and task.wait(0.1) do
+                    if humanoid then
+                        humanoid.WalkSpeed = _G.WalkSpeed or 16
+                    end
+                end
+            end)
+        else
+            -- Tắt tăng tốc -> về mặc định
+            if humanoid then
+                humanoid.WalkSpeed = 16
+            end
+        end
+    end
+})
+
+-- 🎚️ Slider điều chỉnh tốc độ
+TabPlayer:AddSlider({
+    Name = "You Speed",
+    Description = "Điều chỉnh tốc độ nhân vật (1–500)",
+    Min = 1,
+    Max = 500,
+    Default = 16,
+    Callback = function(Value)
+        _G.WalkSpeed = Value
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+        if _G.WalkSpeedEnabled and humanoid then
+            humanoid.WalkSpeed = Value
+        end
+    end
+})
+
+-- 🔁 Giữ tốc độ sau khi respawn
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+    repeat task.wait() until char:FindFirstChildOfClass("Humanoid")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if _G.WalkSpeedEnabled and humanoid then
+        humanoid.WalkSpeed = _G.WalkSpeed
+    end
+end)
+
+
+
+
+local Section = TabPlayer:AddSection({"Jump"})
+
+
+-- 🦘 Nút Bật/Tắt + Thanh Trượt Nhảy Cao
+_G.JumpPowerEnabled = false
+_G.JumpPower = 50 -- mặc định của Roblox
+
+-- 🟢 Toggle bật/tắt nhảy cao
+TabPlayer:AddToggle({
+    Name = "Jump Power",
+    Description = "Bật để điều chỉnh độ cao khi nhảy",
+    Default = false,
+    Callback = function(Value)
+        _G.JumpPowerEnabled = Value
+
+        local player = game.Players.LocalPlayer
+        local char = player.Character or player.CharacterAdded:Wait()
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+
+        if Value then
+            -- Bật nhảy cao
+            task.spawn(function()
+                while _G.JumpPowerEnabled and task.wait(0.1) do
+                    if humanoid then
+                        humanoid.UseJumpPower = true
+                        humanoid.JumpPower = _G.JumpPower or 50
+                    end
+                end
+            end)
+        else
+            -- Tắt nhảy cao -> về mặc định
+            if humanoid then
+                humanoid.JumpPower = 50
+            end
+        end
+    end
+})
+
+-- 🎚️ Slider điều chỉnh độ cao khi nhảy
+TabPlayer:AddSlider({
+    Name = "Power",
+    Description = "Điều chỉnh độ cao khi bật 'Nhảy Cao' (1–500)",
+    Min = 1,
+    Max = 500,
+    Default = 50,
+    Callback = function(Value)
+        _G.JumpPower = Value
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+
+        if _G.JumpPowerEnabled and humanoid then
+            humanoid.JumpPower = Value
+        end
+    end
+})
+
+-- 🔁 Giữ độ cao nhảy sau khi respawn
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+    repeat task.wait() until char:FindFirstChildOfClass("Humanoid")
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if _G.JumpPowerEnabled and humanoid then
+        humanoid.JumpPower = _G.JumpPower
+    end
+end)
+
+
+
+
+local Section = TabPlayer:AddSection({"Flying"})
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -1496,7 +1698,7 @@ TabTeleport:AddButton({
 
 
 
-local Section = TabMisc:AddSection({"Item"})
+local Section = TabTeleport:AddSection({"Item"})
 
 -- 📦 TELEPORT TO ITEM
 ---------------------------------------------------
@@ -1795,7 +1997,6 @@ TabVisual:AddToggle({
 
 
 
-local Section = TabVisual:AddSection({"Item"})
 
 
 ------------------------------------------------
@@ -1977,7 +2178,6 @@ TabVisual:AddToggle({
 end
 
 
-local Section = TabVisual:AddSection({"Weapon"})
 
 ------------------------------------------------
 -- ⚙️ ESP ITEM (Drawing + Highlight màu vàng gold)
@@ -2174,7 +2374,7 @@ TabVisual:AddToggle({
 })
 end
 
-local Section = TabVisual:AddSection({"Mob"})
+
 
 
 ------------------------------------------------
@@ -2368,8 +2568,6 @@ end
 
 
 
-local Section = TabVisual:AddSection({"Food"})
-
 
 ------------------------------------------------------------
 -- 🧡 ESP FOOD (Cam) – highlight & text hiển thị khoảng cách
@@ -2547,7 +2745,6 @@ TabVisual:AddToggle({
 end
 
 
-local Section = TabVisual:AddSection({"Junk"})
 
 ------------------------------------------------------------
 -- 💎 ESP JUNK ITEMS (Xanh lơ) – highlight & text khoảng cách
@@ -2719,7 +2916,7 @@ TabVisual:AddToggle({
 })
 end
 
-local Section = TabVisual:AddSection({"Heal"})
+
 
 ------------------------------------------------------------
 -- ❤️ ESP HEAL ITEMS (Đỏ)
