@@ -1651,28 +1651,95 @@ TabTeleport:AddButton({
 local Section = TabTeleport:AddSection({"Child"})
 
 
-TabTeleport:AddButton({
-    Name = "Teleport to Child",
-    Description = "Dịch chuyển đến căn phòng có trẻ em",
-    Callback = function()
-        local pos = Vector3.new(-355.03, -15.41, 49.74)
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:WaitForChild("HumanoidRootPart")
-        hrp.CFrame = CFrame.new(pos)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+
+-- Danh sách các Lost Child cần tìm
+local lostChildNames = {
+    ["Lost Child"] = true,
+    ["Lost Child2"] = true,
+    ["Lost Child3"] = true,
+    ["Lost Child4"] = true
+}
+
+-- 🔍 Hàm tìm Lost Child gần nhất
+local function findNearestLostChild()
+    local character = player.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+
+    local nearest, nearestDist
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if lostChildNames[obj.Name] and obj:IsA("Model") then
+            local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+            if part then
+                local dist = (hrp.Position - part.Position).Magnitude
+                if not nearest or dist < nearestDist then
+                    nearest = part
+                    nearestDist = dist
+                end
+            end
+        end
     end
+    return nearest
+end
+
+-- 🚀 Hàm teleport đến Lost Child gần nhất
+local function teleportToNearestLostChild()
+    local nearest = findNearestLostChild()
+    if nearest then
+        local char = player.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = nearest.CFrame + Vector3.new(0, 5, 0)
+            print("[✅] Teleported to nearest Lost Child:", nearest.Name)
+        end
+    else
+        warn("[⚠️] No Lost Child found in the map.")
+    end
+end
+
+-- 🧩 Nút Teleport 1 lần
+TabTeleport:AddButton({
+    Name = "Teleport to Lost Child",
+    Description = "Tìm và dịch chuyển đến Lost Child gần nhất",
+    Callback = teleportToNearestLostChild
 })
 
+-- 🔁 Toggle Auto Teleport
+local autoTPEnabled = false
+local autoTPConnection
 
-TabTeleport:AddButton({
-    Name = "Teleport to Child 2",
-    Description = "Dịch chuyển đến căn phòng có trẻ em 2",
-    Callback = function()
-        local pos = Vector3.new(50.69, -20.70, -685.46)
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:WaitForChild("HumanoidRootPart")
-        hrp.CFrame = CFrame.new(pos)
+TabTeleport:AddToggle({
+    Name = "Auto Teleport to Lost Child",
+    Description = "Tự động dịch chuyển khi Lost Child xuất hiện",
+    Default = false,
+    Callback = function(Value)
+        autoTPEnabled = Value
+
+        if autoTPEnabled then
+            print("[🌀] Auto Teleport Lost Child: ON")
+
+            autoTPConnection = RunService.Heartbeat:Connect(function()
+                local nearest = findNearestLostChild()
+                if nearest then
+                    local char = player.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.CFrame = nearest.CFrame + Vector3.new(0, 5, 0)
+                    end
+                end
+                task.wait(0.5) -- giảm tải, kiểm tra 2 lần/giây
+            end)
+        else
+            print("[🛑] Auto Teleport Lost Child: OFF")
+            if autoTPConnection then
+                autoTPConnection:Disconnect()
+                autoTPConnection = nil
+            end
+        end
     end
 })
 
