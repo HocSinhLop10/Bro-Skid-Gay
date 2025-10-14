@@ -17,11 +17,13 @@ local TabMain = Window:MakeTab({"Main", "home"})
 
 local TabFarm = Window:MakeTab({"Farm", "gem"})
 
+local TabPlayer = Window:MakeTab({"Player", "user"})
+
 local TabItem = Window:MakeTab({"Items", "swords"})
 
 local TabTeleport = Window:MakeTab({"Teleport", "locate"})
 
-local TabVisual = Window:MakeTab({"Visual", "user"})
+local TabVisual = Window:MakeTab({"Visual", "eye"})
 
 local TabMisc = Window:MakeTab({"Misc", "menu"})
 
@@ -1033,6 +1035,149 @@ task.spawn(function()
     end
 end)
 
+
+---------------------------------------------------------------------------------
+-- Phần Player
+---------------------------------------------------------------------------------
+
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- ⚙️ STATE
+local flying = false
+local flySpeed = 50
+local renderConn
+
+----------------------------------------------------
+-- 🧩 BODY MOVERS (Giữ cho nhân vật bay ổn định)
+----------------------------------------------------
+local function attachBodyMovers(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	local HRP = character:WaitForChild("HumanoidRootPart")
+
+	if HRP:FindFirstChild("BodyVelocity") then HRP.BodyVelocity:Destroy() end
+	if HRP:FindFirstChild("BodyGyro") then HRP.BodyGyro:Destroy() end
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+	bv.Velocity = Vector3.zero
+	bv.Name = "BodyVelocity"
+	bv.Parent = HRP
+
+	local bg = Instance.new("BodyGyro")
+	bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+	bg.CFrame = HRP.CFrame
+	bg.Name = "BodyGyro"
+	bg.Parent = HRP
+
+	humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+
+	return bv, bg
+end
+
+----------------------------------------------------
+-- 🕊️ START/STOP FLY
+----------------------------------------------------
+local function startFlying()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoid = character:WaitForChild("Humanoid")
+
+	if humanoid.Health <= 0 then return end
+	local HRP = character:WaitForChild("HumanoidRootPart")
+	local bv, bg = attachBodyMovers(character)
+
+	renderConn = RunService.RenderStepped:Connect(function()
+		if not flying or humanoid.Health <= 0 then return end
+		local moveDir = humanoid.MoveDirection
+		local camCF = Camera.CFrame
+		local moveVec = Vector3.zero
+
+		if moveDir.Magnitude > 0 then
+			local forward = camCF.LookVector
+			local flatForward = Vector3.new(forward.X, 0, forward.Z).Unit
+			local verticalInfluence = forward.Unit.Y
+
+			local movingForward = flatForward:Dot(moveDir.Unit) > 0.1
+			local movingBackward = flatForward:Dot(moveDir.Unit) < -0.1
+
+			local yVelocity = 0
+			if movingForward then 
+				yVelocity = verticalInfluence
+			elseif movingBackward then 
+				yVelocity = -verticalInfluence 
+			end
+
+			moveVec = Vector3.new(moveDir.X, yVelocity, moveDir.Z).Unit
+		end
+
+		if bv and bg then
+			bv.Velocity = moveVec * flySpeed
+			bg.CFrame = camCF
+		end
+	end)
+
+	flying = true
+end
+
+local function stopFlying()
+	flying = false
+	if renderConn then renderConn:Disconnect() renderConn = nil end
+
+	local character = player.Character
+	if character then
+		local HRP = character:FindFirstChild("HumanoidRootPart")
+		if HRP then
+			if HRP:FindFirstChild("BodyVelocity") then HRP.BodyVelocity:Destroy() end
+			if HRP:FindFirstChild("BodyGyro") then HRP.BodyGyro:Destroy() end
+		end
+
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end
+end
+
+-- 🔁 Giữ trạng thái khi respawn
+player.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	if flying then
+		startFlying()
+	end
+end)
+
+----------------------------------------------------
+-- 🧠 GUI SETUP
+----------------------------------------------------
+TabPlayer:AddToggle({
+	Name = "Fly (Mobile + PC)",
+	Description = "Chế độ bay (hỗ trợ cả PC & Mobile)",
+	Default = false,
+	Callback = function(value)
+		if value then
+			startFlying()
+		else
+			stopFlying()
+		end
+	end
+})
+
+TabPlayer:AddSlider({
+	Name = "Fly Speed",
+	Description = "Điều chỉnh tốc độ bay",
+	Min = 10,
+	Max = 300,
+	Default = flySpeed,
+	Callback = function(value)
+		flySpeed = value
+	end
+})
+
+
+
 ---------------------------------------------------------------------------------
 -- Phần Item
 ---------------------------------------------------------------------------------
@@ -1506,11 +1651,15 @@ TabTeleport:AddButton({
 local Section = TabTeleport:AddSection({"Children"})
 
 -- 🧭 Teleport to Child (Mob)
-TabTeleport:AddDropdown({
+local currentMobs, currentMobNames = getMobs()
+local selectedMob = nil
+
+-- Dropdown lưu vào biến MobDropdown
+local MobDropdown = TabTeleport:AddDropdown({
     Name = "Select Child",
     Description = "Chọn đối tượng (Mob) để dịch chuyển tới",
-    Options = currentMobNames,
-    Default = currentMobNames[1],
+    Options = currentMobNames or { "⚠️ No child found" },
+    Default = currentMobNames and currentMobNames[1] or nil,
     Multi = false,
     AllowNone = true,
     Callback = function(selected)
@@ -1518,6 +1667,7 @@ TabTeleport:AddDropdown({
     end
 })
 
+-- Nút làm mới danh sách mob
 TabTeleport:AddButton({
     Name = "Refresh List",
     Description = "Làm mới danh sách Child hiện có",
@@ -1525,19 +1675,24 @@ TabTeleport:AddButton({
         currentMobs, currentMobNames = getMobs()
         if #currentMobNames > 0 then
             selectedMob = currentMobNames[1]
-            MobDropdown:Refresh(currentMobNames)
+            if MobDropdown and MobDropdown.Refresh then
+                MobDropdown:Refresh(currentMobNames)
+            end
         else
             selectedMob = nil
-            MobDropdown:Refresh({ "⚠️ No child found" })
+            if MobDropdown and MobDropdown.Refresh then
+                MobDropdown:Refresh({ "⚠️ No child found" })
+            end
         end
     end
 })
 
+-- Nút dịch chuyển đến mob đã chọn
 TabTeleport:AddButton({
     Name = "Teleport to Child",
     Description = "Dịch chuyển đến đối tượng đã chọn",
     Callback = function()
-        if selectedMob and currentMobs then
+        if selectedMob and currentMobs and #currentMobs > 0 then
             for i, name in ipairs(currentMobNames) do
                 if name == selectedMob then
                     local targetMob = currentMobs[i]
@@ -1566,11 +1721,15 @@ TabTeleport:AddButton({
 local Section = TabTeleport:AddSection({"Chest"})
 
 -- 💰 Teleport to Chest
-TabTeleport:AddDropdown({
+local currentChests, currentChestNames = getChests()
+local selectedChest = nil
+
+-- Dropdown chọn Chest
+local ChestDropdown = TabTeleport:AddDropdown({
     Name = "Select Chest",
     Description = "Chọn rương (Chest) để dịch chuyển tới",
-    Options = currentChestNames,
-    Default = currentChestNames[1],
+    Options = currentChestNames or { "⚠️ No chests found" },
+    Default = currentChestNames and currentChestNames[1] or nil,
     Multi = false,
     AllowNone = true,
     Callback = function(selected)
@@ -1578,6 +1737,7 @@ TabTeleport:AddDropdown({
     end
 })
 
+-- Nút làm mới danh sách rương
 TabTeleport:AddButton({
     Name = "Refresh List",
     Description = "Làm mới danh sách Chest hiện có",
@@ -1585,41 +1745,51 @@ TabTeleport:AddButton({
         currentChests, currentChestNames = getChests()
         if #currentChestNames > 0 then
             selectedChest = currentChestNames[1]
-            ChestDropdown:Refresh(currentChestNames)
+            if ChestDropdown and ChestDropdown.Refresh then
+                ChestDropdown:Refresh(currentChestNames)
+            end
         else
             selectedChest = nil
-            ChestDropdown:Refresh({ "⚠️ No chests found" })
+            if ChestDropdown and ChestDropdown.Refresh then
+                ChestDropdown:Refresh({ "⚠️ No chests found" })
+            end
         end
     end
 })
 
+-- Nút dịch chuyển đến rương được chọn
 TabTeleport:AddButton({
     Name = "Teleport to Chest",
     Description = "Dịch chuyển đến rương đã chọn",
     Callback = function()
-        if selectedChest and currentChests then
-            local chestIndex = table.find(currentChestNames, selectedChest) or 1
-            local targetChest = currentChests[chestIndex]
-
-            if targetChest then
-                local part = targetChest.PrimaryPart or targetChest:FindFirstChildWhichIsA("BasePart")
-                if part then
-                    local player = game:GetService("Players").LocalPlayer
-                    local character = player.Character or player.CharacterAdded:Wait()
-                    local hrp = character:FindFirstChild("HumanoidRootPart")
-
-                    if hrp then
-                        hrp.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+        if selectedChest and currentChests and #currentChests > 0 then
+            local chestIndex = table.find(currentChestNames, selectedChest)
+            if chestIndex then
+                local targetChest = currentChests[chestIndex]
+                if targetChest then
+                    local part = targetChest.PrimaryPart or targetChest:FindFirstChildWhichIsA("BasePart")
+                    if part then
+                        local player = game:GetService("Players").LocalPlayer
+                        local character = player.Character or player.CharacterAdded:Wait()
+                        local hrp = character:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                            hrp.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+                        end
                     end
+                else
+                    warn("⚠️ Chest not found in currentChests.")
                 end
             else
-                warn("⚠️ Chest not found in currentChests.")
+                warn("⚠️ Selected chest not found in name list.")
             end
         else
             warn("⚠️ No chest selected or list empty.")
         end
     end
 })
+
+
+
 
 ---------------------------------------------------------------------------------
 -- Phần Misc
