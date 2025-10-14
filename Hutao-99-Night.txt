@@ -1648,7 +1648,33 @@ TabTeleport:AddButton({
     end
 })
 
+local Section = TabTeleport:AddSection({"Child"})
 
+
+TabTeleport:AddButton({
+    Name = "Teleport to Child",
+    Description = "Dịch chuyển đến căn phòng có trẻ em",
+    Callback = function()
+        local pos = Vector3.new(-355.03, -15.41, 49.74)
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        hrp.CFrame = CFrame.new(pos)
+    end
+})
+
+
+TabTeleport:AddButton({
+    Name = "Teleport to Child 2",
+    Description = "Dịch chuyển đến căn phòng có trẻ em 2",
+    Callback = function()
+        local pos = Vector3.new(50.69, -20.70, -685.46)
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        hrp.CFrame = CFrame.new(pos)
+    end
+})
 
 
 local Section = TabTeleport:AddSection({"Chest"})
