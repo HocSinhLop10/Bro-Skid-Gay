@@ -2005,6 +2005,8 @@ local Section = TabVisual:AddSection({"Item"})
 ------------------------------------------------
 -- ⚙️ ESP ITEM (Drawing + Highlight)
 ------------------------------------------------
+
+do
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
@@ -2176,6 +2178,7 @@ TabVisual:AddToggle({
 		end
 	end
 })
+end
 
 
 local Section = TabVisual:AddSection({"Weapon"})
@@ -2183,6 +2186,8 @@ local Section = TabVisual:AddSection({"Weapon"})
 ------------------------------------------------
 -- ⚙️ ESP ITEM (Drawing + Highlight màu vàng gold)
 ------------------------------------------------
+
+do
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
@@ -2371,6 +2376,7 @@ TabVisual:AddToggle({
 		end
 	end
 })
+end
 
 local Section = TabVisual:AddSection({"Mob"})
 
@@ -2378,6 +2384,8 @@ local Section = TabVisual:AddSection({"Mob"})
 ------------------------------------------------
 -- ⚙️ ESP MOB (Drawing + Highlight màu xanh lá)
 ------------------------------------------------
+
+do
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
@@ -2560,6 +2568,7 @@ TabVisual:AddToggle({
 		end
 	end
 })
+end
 
 
 
@@ -2570,6 +2579,7 @@ local Section = TabVisual:AddSection({"Food"})
 -- 🧡 ESP FOOD (Cam) – highlight & text hiển thị khoảng cách
 ------------------------------------------------------------
 
+do
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
@@ -2738,7 +2748,7 @@ TabVisual:AddToggle({
         end
     end
 })
-
+end
 
 
 local Section = TabVisual:AddSection({"Junk"})
@@ -2747,6 +2757,7 @@ local Section = TabVisual:AddSection({"Junk"})
 -- 💎 ESP JUNK ITEMS (Xanh lơ) – highlight & text khoảng cách
 ------------------------------------------------------------
 
+do
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
@@ -2910,7 +2921,7 @@ TabVisual:AddToggle({
         end
     end
 })
-
+end
 
 local Section = TabVisual:AddSection({"Heal"})
 
@@ -2918,6 +2929,7 @@ local Section = TabVisual:AddSection({"Heal"})
 -- ❤️ ESP HEAL ITEMS (Đỏ)
 ------------------------------------------------------------
 
+do
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
@@ -3077,6 +3089,7 @@ TabVisual:AddToggle({
         end
     end
 })
+end
 
 
 ---------------------------------------------------------------------------------
