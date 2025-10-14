@@ -1778,6 +1778,85 @@ TabTeleport:AddButton({
 
 
 
+
+local Section = TabMisc:AddSection({"Item"})
+
+-- 📦 TELEPORT TO ITEM
+---------------------------------------------------
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local itemFolder = workspace:WaitForChild("Items")
+
+local itemNames = {
+    "Revolver", "Medkit", "Alien Chest", "Berry", "Bolt", "Broken Fan",
+    "Carrot", "Coal", "Coin Stack", "Hologram Emitter", "Item Chest",
+    "Laser Fence Blueprint", "Log", "Old Flashlight", "Old Radio",
+    "Sheet Metal", "Bandage", "Rifle"
+}
+
+-- 🧩 Lấy part chính của model
+local function getModelPart(model)
+    if model.PrimaryPart then return model.PrimaryPart end
+    for _, part in pairs(model:GetChildren()) do
+        if part:IsA("BasePart") then
+            return part
+        end
+    end
+    return nil
+end
+
+-- 📜 Dropdown chọn item
+local selectedItem = itemNames[1]
+
+TabTeleport:AddDropdown({
+    Name = "Select Item",
+    Description = "Chọn vật phẩm để dịch chuyển tới",
+    Options = itemNames,
+    Default = selectedItem,
+    Multi = false,
+    AllowNone = true,
+    Callback = function(selected)
+        selectedItem = selected
+    end
+})
+
+-- 🧭 Nút Teleport tới item đã chọn
+TabTeleport:AddButton({
+    Name = "Teleport to Item",
+    Description = "Dịch chuyển đến vật phẩm đã chọn",
+    Callback = function()
+        if not selectedItem then
+            warn("⚠️ Bạn chưa chọn vật phẩm nào.")
+            return
+        end
+
+        local foundParts = {}
+        for _, model in pairs(itemFolder:GetChildren()) do
+            if model:IsA("Model") and model.Name == selectedItem then
+                local part = getModelPart(model)
+                if part then
+                    table.insert(foundParts, part)
+                end
+            end
+        end
+
+        if #foundParts == 0 then
+            warn("⚠️ Không tìm thấy vật phẩm: " .. selectedItem)
+            return
+        end
+
+        local targetPart = foundParts[math.random(1, #foundParts)]
+        local char = localPlayer.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = targetPart.CFrame + Vector3.new(0, 5, 0)
+            end
+        end
+    end
+})
+
+
 ---------------------------------------------------------------------------------
 -- Phần Visual
 ---------------------------------------------------------------------------------
@@ -3191,7 +3270,42 @@ TabMisc:AddToggle({
 })
 
 
+
 local Section = TabMisc:AddSection({"Bypass"})
+
+local antiAfkEnabled = false
+local antiAfkConnection
+
+TabMisc:AddToggle({
+    Name = "Anti AFK",
+    Description = "Ngăn Roblox kick khi không hoạt động",
+    Default = false,
+    Callback = function(Value)
+        antiAfkEnabled = Value
+
+        if antiAfkEnabled then
+            local VirtualUser = game:GetService("VirtualUser")
+            local Players = game:GetService("Players")
+            local player = Players.LocalPlayer
+
+            antiAfkConnection = player.Idled:Connect(function()
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+
+            print("[✅] Anti AFK đã bật")
+        else
+            if antiAfkConnection then
+                antiAfkConnection:Disconnect()
+                antiAfkConnection = nil
+            end
+            print("[⛔] Anti AFK đã tắt")
+        end
+    end
+})
+
+
+local Section = TabMisc:AddSection({"Anti Mob"})
 
 -- 🧩 Services
 local RunService = game:GetService("RunService")
