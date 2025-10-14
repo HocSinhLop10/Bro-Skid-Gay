@@ -1655,7 +1655,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
--- Danh sách các Lost Child cần tìm
+-- Danh sách Lost Child
 local lostChildNames = {
     ["Lost Child"] = true,
     ["Lost Child2"] = true,
@@ -1663,7 +1663,11 @@ local lostChildNames = {
     ["Lost Child4"] = true
 }
 
--- 🔍 Hàm tìm Lost Child gần nhất
+-- ⚠️ Vùng loại trừ (center và bán kính)
+local forbiddenCenter = Vector3.new(0.40, 8.22, 0.10)
+local forbiddenRadius = 100
+
+-- 🔍 Hàm tìm Lost Child gần nhất (không nằm trong vùng cấm)
 local function findNearestLostChild()
     local character = player.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
@@ -1675,18 +1679,24 @@ local function findNearestLostChild()
         if lostChildNames[obj.Name] and obj:IsA("Model") then
             local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
             if part then
-                local dist = (hrp.Position - part.Position).Magnitude
-                if not nearest or dist < nearestDist then
-                    nearest = part
-                    nearestDist = dist
+                local distToPlayer = (hrp.Position - part.Position).Magnitude
+                local distToForbidden = (forbiddenCenter - part.Position).Magnitude
+
+                -- Chỉ chọn nếu không nằm trong vùng loại trừ
+                if distToForbidden > forbiddenRadius then
+                    if not nearest or distToPlayer < nearestDist then
+                        nearest = part
+                        nearestDist = distToPlayer
+                    end
                 end
             end
         end
     end
+
     return nearest
 end
 
--- 🚀 Hàm teleport đến Lost Child gần nhất
+-- 🚀 Hàm teleport
 local function teleportToNearestLostChild()
     local nearest = findNearestLostChild()
     if nearest then
@@ -1697,11 +1707,11 @@ local function teleportToNearestLostChild()
             print("[✅] Teleported to nearest Lost Child:", nearest.Name)
         end
     else
-        warn("[⚠️] No Lost Child found in the map.")
+        warn("[⚠️] No valid Lost Child found (maybe all in restricted zone).")
     end
 end
 
--- 🧩 Nút Teleport 1 lần
+-- 🧩 Button teleport 1 lần
 TabTeleport:AddButton({
     Name = "Teleport to Lost Child",
     Description = "Tìm và dịch chuyển đến Lost Child gần nhất",
@@ -1713,7 +1723,7 @@ local autoTPEnabled = false
 local autoTPConnection
 
 TabTeleport:AddToggle({
-    Name = "Auto Teleport to Lost Child",
+    Name = "Auto Teleport To Lost Child",
     Description = "Tự động dịch chuyển khi Lost Child xuất hiện",
     Default = false,
     Callback = function(Value)
@@ -1731,8 +1741,9 @@ TabTeleport:AddToggle({
                         hrp.CFrame = nearest.CFrame + Vector3.new(0, 5, 0)
                     end
                 end
-                task.wait(0.5) -- giảm tải, kiểm tra 2 lần/giây
+                task.wait(0.5)
             end)
+
         else
             print("[🛑] Auto Teleport Lost Child: OFF")
             if autoTPConnection then
