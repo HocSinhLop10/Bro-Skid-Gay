@@ -795,7 +795,256 @@ TabMain:AddToggle({
 })
 
 
+local Section = TabMain:AddSection({"Anvil"})
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local RemoteEvents = ReplicatedStorage:WaitForChild("RemoteEvents")
+local RequestBuildAnvilPiece = RemoteEvents:WaitForChild("RequestBuildAnvilPiece")
+
+local anvilParts = {"Anvil Base", "Anvil Front", "Anvil Back"}
+local landmark = Workspace:WaitForChild("Map"):WaitForChild("Landmarks"):WaitForChild("ToolWorkshop_MeteorShower")
+
+-- 🧩 Hàm xây Anvil
+local function buildAnvilOnce()
+    local itemsFolder = Workspace:WaitForChild("Items")
+    for _, partName in ipairs(anvilParts) do
+        local part = itemsFolder:FindFirstChild(partName)
+        if part then
+            RequestBuildAnvilPiece:InvokeServer(landmark, part)
+            print("[✅] Built:", partName)
+        else
+            print("[⚠️] Missing:", partName)
+        end
+    end
+end
+
+-- ⚙️ Nút "Build Anvil"
+TabMain:AddButton({
+    Name = "🛠️ Build Anvil Now",
+    Description = "Tự động ghép các phần của Anvil nếu có",
+    Callback = function()
+        pcall(buildAnvilOnce)
+    end
+})
+
+-- 🔁 Toggle "Auto Build Anvil"
+local autoBuild = false
+local autoBuildConn
+
+TabMain:AddToggle({
+    Name = "Auto Build Anvil",
+    Description = "Tự động ghép Anvil khi các phần xuất hiện trong Items",
+    Default = false,
+    Callback = function(value)
+        autoBuild = value
+
+        if autoBuild then
+            print("[🌀] Auto Build Anvil: ON")
+            autoBuildConn = RunService.Heartbeat:Connect(function()
+                local items = Workspace:FindFirstChild("Items")
+                if items then
+                    -- kiểm tra xem có đủ 1 phần nào không
+                    for _, partName in ipairs(anvilParts) do
+                        if items:FindFirstChild(partName) then
+                            buildAnvilOnce()
+                            break
+                        end
+                    end
+                end
+                task.wait(1) -- kiểm tra mỗi 1s để tránh spam
+            end)
+
+        else
+            print("[🛑] Auto Build Anvil: OFF")
+            if autoBuildConn then
+                autoBuildConn:Disconnect()
+                autoBuildConn = nil
+            end
+        end
+    end
+})
+
+
+---------------------------------------------------------------------------------
+-- Phần Farm
+---------------------------------------------------------------------------------
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ToolDamageObject = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("ToolDamageObject")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+local autoTreeFarmActive = false
+local autoTreeFarmThread
+
+-- 🌲 Hàm lấy danh sách cây
+local function getAllTrees()
+    local map = workspace:FindFirstChild("Map")
+    if not map then return {} end
+    local landmarks = map:FindFirstChild("Landmarks") or map:FindFirstChild("Foliage")
+    if not landmarks then return {} end
+
+    local trees = {}
+    for _, tree in ipairs(landmarks:GetChildren()) do
+        if tree.Name == "Small Tree" and tree:IsA("Model") then
+            local trunk = tree:FindFirstChild("Trunk") or tree.PrimaryPart
+            if trunk then
+                table.insert(trees, {tree = tree, trunk = trunk})
+            end
+        end
+    end
+    return trees
+end
+
+-- 🪓 Hàm tìm rìu
+local function getAxe()
+    local inv = LocalPlayer:FindFirstChild("Inventory")
+    if not inv then return nil end
+    return inv:FindFirstChild("Old Axe") or inv:FindFirstChildWhichIsA("Tool")
+end
+
+-- 🧠 Toggle chính
+TabFarm:AddToggle({
+    Name = "Auto Tree Farm",
+    Description = "Tự động chặt tất cả cây xung quanh bạn",
+    Default = false,
+    Callback = function(state)
+        autoTreeFarmActive = state
+
+        if state then
+            print("[🌲] Auto Tree Farm: ON")
+
+            autoTreeFarmThread = task.spawn(function()
+                while autoTreeFarmActive do
+                    local trees = getAllTrees()
+
+                    for _, t in ipairs(trees) do
+                        if not autoTreeFarmActive then break end
+                        if t.tree and t.tree.Parent then
+                            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                            local hrp = char:FindFirstChild("HumanoidRootPart")
+                            if hrp and t.trunk then
+                                -- Di chuyển tới vị trí chặt
+                                local treeCF = t.trunk.CFrame
+                                local pos = treeCF.Position + treeCF.RightVector * 3
+                                hrp.CFrame = CFrame.new(pos)
+                                task.wait(0.3)
+
+                                -- Trang bị rìu
+                                local axe = getAxe()
+                                if axe then
+                                    if axe.Parent == Backpack then
+                                        axe.Parent = char
+                                        task.wait(0.2)
+                                    end
+
+                                    -- Chặt cây
+                                    while t.tree.Parent and autoTreeFarmActive do
+                                        pcall(function()
+                                            axe:Activate()
+                                            ToolDamageObject:InvokeServer(t.tree, axe, "1_8264699301", t.trunk.CFrame)
+                                        end)
+                                        task.wait(1)
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(0.5)
+                    end
+                    task.wait(1)
+                end
+            end)
+
+        else
+            print("[🪵] Auto Tree Farm: OFF")
+            if autoTreeFarmThread then
+                task.cancel(autoTreeFarmThread)
+                autoTreeFarmThread = nil
+            end
+        end
+    end
+})
+
+
+
+
+local Section = TabFarm:AddSection({"Attack"})
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ToolDamageObject = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("ToolDamageObject")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local autoBreakActive = false
+local autoBreakSpeed = 1
+local autoBreakThread
+
+-- ⚙️ Thanh chỉnh tốc độ đánh
+TabFarm:AddSlider({
+    Name = "Auto Hit Speed",
+    Description = "Điều chỉnh tốc độ đánh (Auto Break)",
+    Min = 0.1,
+    Max = 2,
+    Default = 1,
+    Increment = 0.1,
+    Callback = function(val)
+        autoBreakSpeed = val
+    end
+})
+
+-- ⚔️ Toggle tự động đánh
+TabFarm:AddToggle({
+    Name = "Auto Hit (Auto Break)",
+    Description = "Tự động đánh vật thể trước mặt bạn",
+    Default = false,
+    Callback = function(state)
+        autoBreakActive = state
+
+        if state then
+            print("[⚔️] Auto Break: ON")
+
+            autoBreakThread = task.spawn(function()
+                while autoBreakActive do
+                    local inv = LocalPlayer:FindFirstChild("Inventory")
+                    if inv then
+                        local weapon =
+                            inv:FindFirstChild("Spear")
+                            or inv:FindFirstChild("Strong Axe")
+                            or inv:FindFirstChild("Good Axe")
+                            or inv:FindFirstChild("Old Axe")
+
+                        if weapon then
+                            local ray = workspace:Raycast(Camera.CFrame.Position, Camera.CFrame.LookVector * 15)
+                            if ray and ray.Instance and ray.Instance.Name == "Trunk" then
+                                pcall(function()
+                                    ToolDamageObject:InvokeServer(
+                                        ray.Instance.Parent,
+                                        weapon,
+                                        "4_7591937906",
+                                        CFrame.new(ray.Position)
+                                    )
+                                end)
+                            end
+                        end
+                    end
+                    task.wait(autoBreakSpeed)
+                end
+            end)
+
+        else
+            print("[🛑] Auto Break: OFF")
+            if autoBreakThread then
+                task.cancel(autoBreakThread)
+                autoBreakThread = nil
+            end
+        end
+    end
+})
 
 
 
@@ -864,6 +1113,43 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 
+local Section = TabPlayer:AddSection({"Bypass"})
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RequestConsumeItem = ReplicatedStorage:WaitForChild("RemoteEvents"):WaitForChild("RequestConsumeItem")
+
+local infHungerActive = false
+local infHungerConn
+
+TabPlayer:AddToggle({
+    Name = "Inf Hunger",
+    Description = "Giữ chỉ số Hunger luôn đầy (chống đói)",
+    Default = false,
+    Callback = function(state)
+        infHungerActive = state
+
+        if state then
+            print("[🍗] Inf Hunger: ON")
+
+            infHungerConn = task.spawn(function()
+                while infHungerActive do
+                    pcall(function()
+                        RequestConsumeItem:InvokeServer(Instance.new("Model"))
+                    end)
+                    task.wait(1)
+                end
+            end)
+
+        else
+            print("[🛑] Inf Hunger: OFF")
+
+            if infHungerConn then
+                task.cancel(infHungerConn)
+                infHungerConn = nil
+            end
+        end
+    end
+})
 
 
 
@@ -1143,21 +1429,53 @@ TabPlayer:AddSlider({
 
 
 
+
+
+
+
+
 ---------------------------------------------------------------------------------
 -- Phần Item
 ---------------------------------------------------------------------------------
 
+TabItem:AddButton({
+    Name = "Bring Everything",
+    Description = "Hút toàn bộ item trong map về quanh bạn",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+
+        local itemsFolder = workspace:FindFirstChild("Items")
+        if not itemsFolder then
+            warn("[❌] Không tìm thấy thư mục Items trong workspace.")
+            return
+        end
+
+        for _, item in ipairs(itemsFolder:GetChildren()) do
+            local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+            if part then
+                -- Hút đồ về quanh người, có ngẫu nhiên để tránh chồng
+                part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                task.wait(0.01) -- giúp giảm lag
+            end
+        end
+    end
+})
+
+
+
+
+
 local Section = TabItem:AddSection({"Fuel"})
 
--- ⛽ Auto Bring Fuel Items (Fluent Style)
-local fuelToggleEnabled = false
-local fuelLoopRunning = false
-local selectedFuelItems = selectedFuelItems or {}
+-- ⛽ Bring Fuel Items (Button Version)
+local selectedFuelItems = {}
 
 TabItem:AddDropdown({
     Name = "Select Fuel Items",
-    Description = "Chọn các vật phẩm nhiên liệu (Fuel) để mang theo",
-    Options = fuelItems,
+    Description = "Chọn các vật phẩm nhiên liệu để bring",
+    Options = fuelItems, -- danh sách item nhiên liệu có sẵn
     Default = {},
     MultiSelect = true,
     Callback = function(options)
@@ -1165,60 +1483,57 @@ TabItem:AddDropdown({
     end
 })
 
-TabItem:AddToggle({
-    Name = "Bring Fuel Items",
-    Description = "Tự động mang vật phẩm nhiên liệu đã chọn (hãy mở khóa ít nhất 1 khu vực trước)",
-    Default = false,
-    Callback = function(Value)
-        fuelToggleEnabled = Value
+TabItem:AddButton({
+    Name = "Bring Selected Fuel Items",
+    Description = "Mang toàn bộ vật phẩm nhiên liệu đã chọn về quanh bạn",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if Value then
-            if #selectedFuelItems > 0 then
-                fuelLoopRunning = true
+        if not hrp then
+            warn("[Fuel] ❌ Không tìm thấy HumanoidRootPart.")
+            return
+        end
 
-                task.spawn(function()
-                    while fuelLoopRunning and fuelToggleEnabled do
-                        pcall(function()
-                            if #selectedFuelItems > 0 then
-                                bypassBringSystem(selectedFuelItems, function()
-                                    return fuelToggleEnabled
-                                end)
-                            end
-                        end)
+        if not workspace:FindFirstChild("Items") then
+            warn("[Fuel] ❌ Không tìm thấy thư mục workspace.Items.")
+            return
+        end
 
-                        -- Đợi 3s giữa mỗi vòng, có thể dừng sớm nếu tắt toggle
-                        local waitTime = 0
-                        while waitTime < 3 and fuelToggleEnabled and fuelLoopRunning do
-                            task.wait(0.1)
-                            waitTime += 0.1
+        if #selectedFuelItems == 0 then
+            warn("[Fuel] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
+            return
+        end
+
+        local itemsFolder = workspace.Items
+        for _, item in pairs(itemsFolder:GetChildren()) do
+            if item:IsA("Model") then
+                for _, selectedName in ipairs(selectedFuelItems) do
+                    if string.lower(item.Name) == string.lower(selectedName) then
+                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
+                        if mainPart then
+                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5,5), 0, math.random(-5,5))
+                            task.wait(0.02) -- nhẹ máy, tránh lag
                         end
                     end
-                    fuelLoopRunning = false
-                end)
-            else
-                fuelToggleEnabled = false
-                warn("[Fuel] ⚠️ Không có vật phẩm nào được chọn để mang theo.")
+                end
             end
-        else
-            fuelLoopRunning = false
         end
     end
 })
 
 
-
 local Section = TabItem:AddSection({"Junk"})
 
 
--- 🧺 Auto Bring Junk Items (Fluent Style)
-local junkToggleEnabled = false
-local junkLoopRunning = false
-local selectedJunkItems = selectedJunkItems or {}
+-- 🧺 Bring Junk Items (Manual Button Version)
+local selectedJunkItems = {}
 
 TabItem:AddDropdown({
     Name = "Select Junk Items",
-    Description = "Chọn các vật phẩm Junk mà bạn muốn mang theo",
-    Options = junkItems,
+    Description = "Chọn các vật phẩm Junk để mang theo",
+    Options = junkItems, -- danh sách các vật phẩm junk có sẵn
     Default = {},
     MultiSelect = true,
     Callback = function(options)
@@ -1226,59 +1541,58 @@ TabItem:AddDropdown({
     end
 })
 
-TabItem:AddToggle({
-    Name = "Bring Junk Items",
-    Description = "Tự động mang các vật phẩm Junk đã chọn (hãy mở khoá ít nhất 1 khu vực trước)",
-    Default = false,
-    Callback = function(Value)
-        junkToggleEnabled = Value
+TabItem:AddButton({
+    Name = "Bring Selected Junk Items",
+    Description = "Mang toàn bộ vật phẩm Junk đã chọn về quanh bạn",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if Value then
-            if #selectedJunkItems > 0 then
-                junkLoopRunning = true
+        if not hrp then
+            warn("[Junk] ❌ Không tìm thấy HumanoidRootPart.")
+            return
+        end
 
-                task.spawn(function()
-                    while junkLoopRunning and junkToggleEnabled do
-                        pcall(function()
-                            if #selectedJunkItems > 0 then
-                                bypassBringSystem(selectedJunkItems, function()
-                                    return junkToggleEnabled
-                                end)
-                            end
-                        end)
+        if not workspace:FindFirstChild("Items") then
+            warn("[Junk] ❌ Không tìm thấy thư mục workspace.Items.")
+            return
+        end
 
-                        -- Chờ 3 giây, có thể dừng ngay khi tắt
-                        local waitTime = 0
-                        while waitTime < 3 and junkToggleEnabled and junkLoopRunning do
-                            task.wait(0.1)
-                            waitTime += 0.1
+        if #selectedJunkItems == 0 then
+            warn("[Junk] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
+            return
+        end
+
+        local itemsFolder = workspace.Items
+        for _, item in pairs(itemsFolder:GetChildren()) do
+            if item:IsA("Model") then
+                for _, selectedName in ipairs(selectedJunkItems) do
+                    if string.lower(item.Name) == string.lower(selectedName) then
+                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
+                        if mainPart then
+                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5,5), 0, math.random(-5,5))
+                            task.wait(0.02) -- tránh lag
                         end
                     end
-
-                    junkLoopRunning = false
-                end)
-            else
-                junkToggleEnabled = false
-                warn("[Junk] ❌ Không có vật phẩm nào được chọn để mang theo.")
+                end
             end
-        else
-            junkLoopRunning = false
         end
     end
 })
 
 
+
 local Section = TabItem:AddSection({"Blue Print"})
 
--- 🧱 Auto Bring BluePrint Items (Fluent Style)
-local BlueprintToggleEnabled = false
-local BlueprintLoopRunning = false
-local selectedBlueprintItems = selectedBlueprintItems or {}
+
+-- 🧱 Bring Blueprint Items (Manual Button Version)
+local selectedBlueprintItems = {}
 
 TabItem:AddDropdown({
     Name = "Select Blueprint Items",
-    Description = "Chọn các vật phẩm Blueprint bạn muốn mang theo",
-    Options = selectedBlueprintItems,
+    Description = "Chọn các vật phẩm Blueprint để mang theo",
+    Options = blueprintItems, -- ⚠️ danh sách blueprint có sẵn
     Default = {},
     MultiSelect = true,
     Callback = function(options)
@@ -1286,60 +1600,58 @@ TabItem:AddDropdown({
     end
 })
 
-TabItem:AddToggle({
-    Name = "Bring Blueprint Items",
-    Description = "Tự động mang các vật phẩm Blueprint đã chọn (hãy mở khoá khu vực trước)",
-    Default = false,
-    Callback = function(Value)
-        BlueprintToggleEnabled = Value
+TabItem:AddButton({
+    Name = "Bring Selected Blueprint Items",
+    Description = "Mang toàn bộ vật phẩm Blueprint đã chọn về quanh bạn",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if Value then
-            if #selectedBlueprintItems > 0 then
-                BlueprintLoopRunning = true
+        if not hrp then
+            warn("[Blueprint] ❌ Không tìm thấy HumanoidRootPart.")
+            return
+        end
 
-                task.spawn(function()
-                    while BlueprintLoopRunning and BlueprintToggleEnabled do
-                        pcall(function()
-                            if #selectedBlueprintItems > 0 then
-                                bypassBringSystem(selectedBlueprintItems, function()
-                                    return BlueprintToggleEnabled
-                                end)
-                            end
-                        end)
+        if not workspace:FindFirstChild("Items") then
+            warn("[Blueprint] ❌ Không tìm thấy thư mục workspace.Items.")
+            return
+        end
 
-                        -- Chờ 3 giây, có thể dừng bất kỳ lúc nào
-                        local waitTime = 0
-                        while waitTime < 3 and BlueprintToggleEnabled and BlueprintLoopRunning do
-                            task.wait(0.1)
-                            waitTime += 0.1
+        if #selectedBlueprintItems == 0 then
+            warn("[Blueprint] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
+            return
+        end
+
+        local itemsFolder = workspace.Items
+        for _, item in pairs(itemsFolder:GetChildren()) do
+            if item:IsA("Model") then
+                for _, selectedName in ipairs(selectedBlueprintItems) do
+                    if string.lower(item.Name) == string.lower(selectedName) then
+                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
+                        if mainPart then
+                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5,5), 0, math.random(-5,5))
+                            task.wait(0.02)
                         end
                     end
-
-                    BlueprintLoopRunning = false
-                end)
-            else
-                BlueprintToggleEnabled = false
-                warn("[Blueprint] ❌ Không có vật phẩm nào được chọn để mang theo.")
+                end
             end
-        else
-            BlueprintLoopRunning = false
         end
     end
 })
 
 
+
 local Section = TabItem:AddSection({"Food"})
 
 
--- 🍖 Auto Bring Food Items (Fluent Style)
-local foodToggleEnabled = false
-local foodLoopRunning = false
-local selectedFoodItems = selectedFoodItems or {}
+-- 🍖 Bring Food Items (Manual Button Version)
+local selectedFoodItems = {}
 
 TabItem:AddDropdown({
     Name = "Select Food Items",
     Description = "Chọn các vật phẩm thức ăn (Food) để mang theo",
-    Options = foodItems,
+    Options = foodItems, -- ⚠️ Danh sách item thức ăn
     Default = {},
     MultiSelect = true,
     Callback = function(options)
@@ -1347,42 +1659,42 @@ TabItem:AddDropdown({
     end
 })
 
-TabItem:AddToggle({
-    Name = "Bring Food Items",
-    Description = "Tự động mang thức ăn đã chọn (hãy mở khóa ít nhất 1 khu vực trước)",
-    Default = false,
-    Callback = function(Value)
-        foodToggleEnabled = Value
+TabItem:AddButton({
+    Name = "Bring Selected Food Items",
+    Description = "Mang toàn bộ vật phẩm thức ăn đã chọn về quanh bạn",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if Value then
-            if #selectedFoodItems > 0 then
-                foodLoopRunning = true
+        if not hrp then
+            warn("[Food] ❌ Không tìm thấy HumanoidRootPart.")
+            return
+        end
 
-                task.spawn(function()
-                    while foodLoopRunning and foodToggleEnabled do
-                        pcall(function()
-                            if #selectedFoodItems > 0 then
-                                bypassBringSystem(selectedFoodItems, function()
-                                    return foodToggleEnabled
-                                end)
-                            end
-                        end)
+        local itemsFolder = workspace:FindFirstChild("Items")
+        if not itemsFolder then
+            warn("[Food] ❌ Không tìm thấy workspace.Items.")
+            return
+        end
 
-                        -- Đợi 3 giây giữa mỗi vòng, có thể dừng sớm nếu toggle tắt
-                        local waitTime = 0
-                        while waitTime < 3 and foodToggleEnabled and foodLoopRunning do
-                            task.wait(0.1)
-                            waitTime += 0.1
+        if #selectedFoodItems == 0 then
+            warn("[Food] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
+            return
+        end
+
+        for _, item in pairs(itemsFolder:GetChildren()) do
+            if item:IsA("Model") then
+                for _, selectedName in ipairs(selectedFoodItems) do
+                    if string.lower(item.Name) == string.lower(selectedName) then
+                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
+                        if mainPart then
+                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5, 5), 0, math.random(-5, 5))
+                            task.wait(0.02)
                         end
                     end
-                    foodLoopRunning = false
-                end)
-            else
-                foodToggleEnabled = false
-                warn("[Food] ⚠️ Không có vật phẩm nào được chọn để mang theo.")
+                end
             end
-        else
-            foodLoopRunning = false
         end
     end
 })
@@ -1390,16 +1702,13 @@ TabItem:AddToggle({
 
 local Section = TabItem:AddSection({"Pelts"})
 
-
--- 🦊 Auto Bring Pelts Items (Fluent Style)
-local PeltsToggleEnabled = false
-local PeltsLoopRunning = false
-local selectedPeltsItems = selectedPeltsItems or {}
+-- 🦊 Bring Pelts Items (Manual Button Version)
+local selectedPeltsItems = {}
 
 TabItem:AddDropdown({
     Name = "Select Pelts Items",
-    Description = "Chọn các vật phẩm Pelts bạn muốn mang theo",
-    Options = PeltsItems,
+    Description = "Chọn các vật phẩm Pelts mà bạn muốn mang theo",
+    Options = PeltsItems, -- ⚠️ Danh sách các Pelts item
     Default = {},
     MultiSelect = true,
     Callback = function(options)
@@ -1407,58 +1716,57 @@ TabItem:AddDropdown({
     end
 })
 
-TabItem:AddToggle({
-    Name = "Bring Pelts Items",
-    Description = "Tự động mang các vật phẩm Pelts đã chọn (hãy mở khoá ít nhất 1 khu vực trước)",
-    Default = false,
-    Callback = function(Value)
-        PeltsToggleEnabled = Value
+TabItem:AddButton({
+    Name = "Bring Selected Pelts Items",
+    Description = "Mang toàn bộ vật phẩm Pelts đã chọn về quanh bạn",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if Value then
-            if #selectedPeltsItems > 0 then
-                PeltsLoopRunning = true
+        if not hrp then
+            warn("[Pelts] ❌ Không tìm thấy HumanoidRootPart.")
+            return
+        end
 
-                task.spawn(function()
-                    while PeltsLoopRunning and PeltsToggleEnabled do
-                        pcall(function()
-                            if #selectedPeltsItems > 0 then
-                                bypassBringSystem(selectedPeltsItems, function()
-                                    return PeltsToggleEnabled
-                                end)
-                            end
-                        end)
+        local itemsFolder = workspace:FindFirstChild("Items")
+        if not itemsFolder then
+            warn("[Pelts] ❌ Không tìm thấy workspace.Items.")
+            return
+        end
 
-                        -- Chờ có thể dừng ngay khi tắt
-                        local waitTime = 0
-                        while waitTime < 3 and PeltsToggleEnabled and PeltsLoopRunning do
-                            task.wait(0.1)
-                            waitTime += 0.1
+        if #selectedPeltsItems == 0 then
+            warn("[Pelts] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
+            return
+        end
+
+        for _, item in pairs(itemsFolder:GetChildren()) do
+            if item:IsA("Model") then
+                for _, selectedName in ipairs(selectedPeltsItems) do
+                    if string.lower(item.Name) == string.lower(selectedName) then
+                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
+                        if mainPart then
+                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5, 5), 0, math.random(-5, 5))
+                            task.wait(0.02)
                         end
                     end
-
-                    PeltsLoopRunning = false
-                end)
-            else
-                PeltsToggleEnabled = false
-                warn("[Pelts] ❌ Không có vật phẩm nào được chọn để mang theo.")
+                end
             end
-        else
-            PeltsLoopRunning = false
         end
     end
 })
 
+
 local Section = TabItem:AddSection({"Medicine"})
 
--- 💊 Auto Bring Medical Items (Fluent Style)
-local medicalToggleEnabled = false
-local medicalLoopRunning = false
-local selectedMedicalItems = selectedMedicalItems or {}
+
+-- 💊 Bring Medical Items (Manual Button Version)
+local selectedMedicalItems = {}
 
 TabItem:AddDropdown({
     Name = "Select Medical Items",
-    Description = "Chọn các vật phẩm y tế (Medical) để mang theo",
-    Options = medicalItems,
+    Description = "Chọn các vật phẩm y tế (Medical) bạn muốn mang theo",
+    Options = medicalItems, -- ⚠️ Danh sách các vật phẩm y tế
     Default = {},
     MultiSelect = true,
     Callback = function(options)
@@ -1466,42 +1774,42 @@ TabItem:AddDropdown({
     end
 })
 
-TabItem:AddToggle({
-    Name = "Bring Medical Items",
-    Description = "Tự động mang các vật phẩm y tế đã chọn (hãy mở khóa ít nhất 1 khu vực trước)",
-    Default = false,
-    Callback = function(Value)
-        medicalToggleEnabled = Value
+TabItem:AddButton({
+    Name = "Bring Selected Medical Items",
+    Description = "Mang toàn bộ vật phẩm y tế đã chọn về quanh bạn",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if Value then
-            if #selectedMedicalItems > 0 then
-                medicalLoopRunning = true
+        if not hrp then
+            warn("[Medical] ❌ Không tìm thấy HumanoidRootPart.")
+            return
+        end
 
-                task.spawn(function()
-                    while medicalLoopRunning and medicalToggleEnabled do
-                        pcall(function()
-                            if #selectedMedicalItems > 0 then
-                                bypassBringSystem(selectedMedicalItems, function()
-                                    return medicalToggleEnabled
-                                end)
-                            end
-                        end)
+        local itemsFolder = workspace:FindFirstChild("Items")
+        if not itemsFolder then
+            warn("[Medical] ❌ Không tìm thấy workspace.Items.")
+            return
+        end
 
-                        -- Đợi 3 giây giữa mỗi vòng, có thể dừng sớm nếu toggle bị tắt
-                        local waitTime = 0
-                        while waitTime < 3 and medicalToggleEnabled and medicalLoopRunning do
-                            task.wait(0.1)
-                            waitTime += 0.1
+        if #selectedMedicalItems == 0 then
+            warn("[Medical] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
+            return
+        end
+
+        for _, item in pairs(itemsFolder:GetChildren()) do
+            if item:IsA("Model") then
+                for _, selectedName in ipairs(selectedMedicalItems) do
+                    if string.lower(item.Name) == string.lower(selectedName) then
+                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
+                        if mainPart then
+                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5, 5), 0, math.random(-5, 5))
+                            task.wait(0.02)
                         end
                     end
-                    medicalLoopRunning = false
-                end)
-            else
-                medicalToggleEnabled = false
-                warn("[Medical] ⚠️ Không có vật phẩm y tế nào được chọn để mang theo.")
+                end
             end
-        else
-            medicalLoopRunning = false
         end
     end
 })
@@ -1509,53 +1817,61 @@ TabItem:AddToggle({
 
 local Section = TabItem:AddSection({"Equipment"})
 
--- ⚙️ Equipment Bring System
+
+-- ⚙️ Bring Equipment Items (Manual Button Version)
+local selectedEquipmentItems = {}
+
 TabItem:AddDropdown({
     Name = "Select Equipment Items",
     Description = "Chọn các vật phẩm trang bị muốn mang",
     Default = {},
-    Options = equipmentItems,
+    Options = equipmentItems, -- ⚠️ Danh sách các vật phẩm trang bị
     MultiSelect = true,
     Callback = function(options)
         selectedEquipmentItems = options
     end
 })
 
-TabItem:AddToggle({
-    Name = "Bring Equipment Items",
-    Description = "Trước khi mang hãy mở khóa ít nhất 1 khu vực!",
-    Default = false,
-    Callback = function(Value)
-        equipmentToggleEnabled = Value
+TabItem:AddButton({
+    Name = "Bring Selected Equipment Items",
+    Description = "Mang toàn bộ trang bị đã chọn về quanh bạn (hãy mở khóa ít nhất 1 khu vực trước)",
+    Callback = function()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if Value then
-            if #selectedEquipmentItems > 0 then
-                equipmentLoopRunning = true
-                task.spawn(function()
-                    while equipmentLoopRunning and equipmentToggleEnabled do
-                        if #selectedEquipmentItems > 0 and equipmentToggleEnabled then
-                            bypassBringSystem(selectedEquipmentItems, function() 
-                                return equipmentToggleEnabled 
-                            end)
-                        end
+        if not hrp then
+            warn("[Equipment] ❌ Không tìm thấy HumanoidRootPart.")
+            return
+        end
 
-                        -- Chờ với kiểm tra dừng an toàn
-                        local waitTime = 0
-                        while waitTime < 3 and equipmentToggleEnabled and equipmentLoopRunning do
-                            task.wait(0.1)
-                            waitTime += 0.1
+        local itemsFolder = workspace:FindFirstChild("Items")
+        if not itemsFolder then
+            warn("[Equipment] ❌ Không tìm thấy workspace.Items.")
+            return
+        end
+
+        if #selectedEquipmentItems == 0 then
+            warn("[Equipment] ⚠️ Bạn chưa chọn vật phẩm nào để mang.")
+            return
+        end
+
+        for _, item in pairs(itemsFolder:GetChildren()) do
+            if item:IsA("Model") then
+                for _, selectedName in ipairs(selectedEquipmentItems) do
+                    if string.lower(item.Name) == string.lower(selectedName) then
+                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
+                        if mainPart then
+                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-6, 6), 0, math.random(-6, 6))
+                            task.wait(0.02)
                         end
                     end
-                    equipmentLoopRunning = false
-                end)
-            else
-                equipmentToggleEnabled = false
+                end
             end
-        else
-            equipmentLoopRunning = false
         end
     end
 })
+
 
 ---------------------------------------------------------------------------------
 -- Phần Teleport
@@ -1756,6 +2072,66 @@ TabTeleport:AddToggle({
 
 
 local Section = TabTeleport:AddSection({"Chest"})
+
+
+-- 🧰 Teleport to Chest (Fluent Button Style)
+local chestList = {
+    "Item Chest",
+    "Item Chest2",
+    "Item Chest3",
+    "Item Chest4",
+    "Item Chest5",
+    "Item Chest6"
+}
+
+local selectedChest = nil
+
+-- Dropdown chọn rương
+TabTeleport:AddDropdown({
+    Name = "Select Chest",
+    Description = "Chọn rương bạn muốn dịch chuyển đến",
+    Options = chestList,
+    Default = {},
+    MultiSelect = false,
+    Callback = function(option)
+        selectedChest = option
+    end
+})
+
+-- Nút dịch chuyển
+TabTeleport:AddButton({
+    Name = "Teleport to Chest",
+    Description = "Dịch chuyển đến rương được chọn",
+    Callback = function()
+        if not selectedChest then
+            warn("[⚠️] Bạn chưa chọn rương nào để dịch chuyển.")
+            return
+        end
+
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+
+        local itemsFolder = workspace:FindFirstChild("Items")
+        if not itemsFolder then
+            warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+            return
+        end
+
+        local targetChest = itemsFolder:FindFirstChild(selectedChest)
+        if targetChest and targetChest:IsA("Model") and targetChest.PrimaryPart then
+            -- Dịch chuyển đến chest
+            hrp.CFrame = targetChest.PrimaryPart.CFrame + Vector3.new(0, 2, 0)
+            print("[✅] Đã dịch chuyển đến: " .. selectedChest)
+        else
+            warn("[❌] Không tìm thấy " .. selectedChest .. " hoặc nó không có PrimaryPart.")
+        end
+    end
+})
+
+
+
+
 
 ------------------------------------------------------------
 -- 💎 TELEPORT TO STRONGHOLD DIAMOND CHEST
