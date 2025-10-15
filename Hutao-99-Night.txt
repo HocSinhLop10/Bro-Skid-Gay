@@ -1221,412 +1221,399 @@ TabItem:AddButton({
 
 
 
+local Section = TabItem:AddSection({"Medicine"})
+
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Danh sách vật phẩm muốn tạo nút Bring
+local medicalItems = {"Bandage", "MedKit"}
+
+-- Tạo nút Bring cho từng vật phẩm (theo kiểu Fluent)
+for _, itemName in ipairs(medicalItems) do
+    TabItem:AddButton({
+        Name = "Bring " .. itemName,
+        Description = "Hút toàn bộ vật phẩm '" .. itemName .. "' về quanh bạn",
+        Callback = function()
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+
+            if not hrp then
+                warn("[❌] Không tìm thấy HumanoidRootPart.")
+                return
+            end
+
+            local itemsFolder = workspace:FindFirstChild("Items")
+            if not itemsFolder then
+                warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+                return
+            end
+
+            local count = 0
+            for _, item in ipairs(itemsFolder:GetChildren()) do
+                if item:IsA("Model") and string.lower(item.Name):find(string.lower(itemName)) then
+                    local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+                    if part then
+                        part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                        task.wait(0.02) -- chống lag
+                        count += 1
+                    end
+                end
+            end
+
+            if count > 0 then
+                print(("[✅] Bring '%s' thành công (%d vật phẩm)!"):format(itemName, count))
+            else
+                warn(("[⚠️] Không tìm thấy vật phẩm '%s' trong map."):format(itemName))
+            end
+        end
+    })
+end
 
 
 local Section = TabItem:AddSection({"Fuel"})
 
--- ⛽ Bring Fuel Items (Button Version)
-local selectedFuelItems = {}
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-TabItem:AddDropdown({
-    Name = "Select Fuel Items",
-    Description = "Chọn các vật phẩm nhiên liệu để bring",
-    Options = fuelItems, -- danh sách item nhiên liệu có sẵn
-    Default = {},
-    MultiSelect = true,
-    Callback = function(options)
-        selectedFuelItems = options
-    end
-})
+-- Danh sách vật phẩm muốn tạo nút Bring
+local fuelItems = {"Log", "Chair", "Coal", "Fuel Canister", "Oil Barrel"}
 
-TabItem:AddButton({
-    Name = "Bring Selected Fuel Items",
-    Description = "Mang toàn bộ vật phẩm nhiên liệu đã chọn về quanh bạn",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:FindFirstChild("HumanoidRootPart")
+-- Tạo nút Bring cho từng vật phẩm (theo kiểu Fluent)
+for _, itemName in ipairs(fuelItems) do
+    TabItem:AddButton({
+        Name = "Bring " .. itemName,
+        Description = "Hút toàn bộ vật phẩm '" .. itemName .. "' về quanh bạn",
+        Callback = function()
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if not hrp then
-            warn("[Fuel] ❌ Không tìm thấy HumanoidRootPart.")
-            return
-        end
+            if not hrp then
+                warn("[❌] Không tìm thấy HumanoidRootPart.")
+                return
+            end
 
-        if not workspace:FindFirstChild("Items") then
-            warn("[Fuel] ❌ Không tìm thấy thư mục workspace.Items.")
-            return
-        end
+            local itemsFolder = workspace:FindFirstChild("Items")
+            if not itemsFolder then
+                warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+                return
+            end
 
-        if #selectedFuelItems == 0 then
-            warn("[Fuel] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
-            return
-        end
-
-        local itemsFolder = workspace.Items
-        for _, item in pairs(itemsFolder:GetChildren()) do
-            if item:IsA("Model") then
-                for _, selectedName in ipairs(selectedFuelItems) do
-                    if string.lower(item.Name) == string.lower(selectedName) then
-                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
-                        if mainPart then
-                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5,5), 0, math.random(-5,5))
-                            task.wait(0.02) -- nhẹ máy, tránh lag
-                        end
+            local count = 0
+            for _, item in ipairs(itemsFolder:GetChildren()) do
+                if item:IsA("Model") and string.lower(item.Name):find(string.lower(itemName)) then
+                    local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+                    if part then
+                        part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                        task.wait(0.02) -- chống lag
+                        count += 1
                     end
                 end
             end
-        end
-    end
-})
 
-
-local Section = TabItem:AddSection({"Junk"})
-
-
--- 🧺 Bring Junk Items (Manual Button Version)
-local selectedJunkItems = {}
-
-TabItem:AddDropdown({
-    Name = "Select Junk Items",
-    Description = "Chọn các vật phẩm Junk để mang theo",
-    Options = junkItems, -- danh sách các vật phẩm junk có sẵn
-    Default = {},
-    MultiSelect = true,
-    Callback = function(options)
-        selectedJunkItems = options
-    end
-})
-
-TabItem:AddButton({
-    Name = "Bring Selected Junk Items",
-    Description = "Mang toàn bộ vật phẩm Junk đã chọn về quanh bạn",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-
-        if not hrp then
-            warn("[Junk] ❌ Không tìm thấy HumanoidRootPart.")
-            return
-        end
-
-        if not workspace:FindFirstChild("Items") then
-            warn("[Junk] ❌ Không tìm thấy thư mục workspace.Items.")
-            return
-        end
-
-        if #selectedJunkItems == 0 then
-            warn("[Junk] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
-            return
-        end
-
-        local itemsFolder = workspace.Items
-        for _, item in pairs(itemsFolder:GetChildren()) do
-            if item:IsA("Model") then
-                for _, selectedName in ipairs(selectedJunkItems) do
-                    if string.lower(item.Name) == string.lower(selectedName) then
-                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
-                        if mainPart then
-                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5,5), 0, math.random(-5,5))
-                            task.wait(0.02) -- tránh lag
-                        end
-                    end
-                end
+            if count > 0 then
+                print(("[✅] Bring '%s' thành công (%d vật phẩm)!"):format(itemName, count))
+            else
+                warn(("[⚠️] Không tìm thấy vật phẩm '%s' trong map."):format(itemName))
             end
         end
-    end
-})
+    })
+end
 
 
 
 local Section = TabItem:AddSection({"Blue Print"})
 
 
--- 🧱 Bring Blueprint Items (Manual Button Version)
-local selectedBlueprintItems = {}
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-TabItem:AddDropdown({
-    Name = "Select Blueprint Items",
-    Description = "Chọn các vật phẩm Blueprint để mang theo",
-    Options = blueprintItems, -- ⚠️ danh sách blueprint có sẵn
-    Default = {},
-    MultiSelect = true,
-    Callback = function(options)
-        selectedBlueprintItems = options
-    end
-})
+-- Danh sách vật phẩm muốn tạo nút Bring
+local BlueprintItems = {"Crafting Blueprint", "Defense Blueprint", "Furniture Blueprint"}
 
-TabItem:AddButton({
-    Name = "Bring Selected Blueprint Items",
-    Description = "Mang toàn bộ vật phẩm Blueprint đã chọn về quanh bạn",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:FindFirstChild("HumanoidRootPart")
+-- Tạo nút Bring cho từng vật phẩm (theo kiểu Fluent)
+for _, itemName in ipairs(BlueprintItems) do
+    TabItem:AddButton({
+        Name = "Bring " .. itemName,
+        Description = "Hút toàn bộ vật phẩm '" .. itemName .. "' về quanh bạn",
+        Callback = function()
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if not hrp then
-            warn("[Blueprint] ❌ Không tìm thấy HumanoidRootPart.")
-            return
-        end
+            if not hrp then
+                warn("[❌] Không tìm thấy HumanoidRootPart.")
+                return
+            end
 
-        if not workspace:FindFirstChild("Items") then
-            warn("[Blueprint] ❌ Không tìm thấy thư mục workspace.Items.")
-            return
-        end
+            local itemsFolder = workspace:FindFirstChild("Items")
+            if not itemsFolder then
+                warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+                return
+            end
 
-        if #selectedBlueprintItems == 0 then
-            warn("[Blueprint] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
-            return
-        end
-
-        local itemsFolder = workspace.Items
-        for _, item in pairs(itemsFolder:GetChildren()) do
-            if item:IsA("Model") then
-                for _, selectedName in ipairs(selectedBlueprintItems) do
-                    if string.lower(item.Name) == string.lower(selectedName) then
-                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
-                        if mainPart then
-                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5,5), 0, math.random(-5,5))
-                            task.wait(0.02)
-                        end
+            local count = 0
+            for _, item in ipairs(itemsFolder:GetChildren()) do
+                if item:IsA("Model") and string.lower(item.Name):find(string.lower(itemName)) then
+                    local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+                    if part then
+                        part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                        task.wait(0.02) -- chống lag
+                        count += 1
                     end
                 end
             end
+
+            if count > 0 then
+                print(("[✅] Bring '%s' thành công (%d vật phẩm)!"):format(itemName, count))
+            else
+                warn(("[⚠️] Không tìm thấy vật phẩm '%s' trong map."):format(itemName))
+            end
         end
-    end
-})
+    })
+end
+
+
+
+
+
+local Section = TabItem:AddSection({"Pelts"})
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Danh sách vật phẩm muốn tạo nút Bring
+local PeltsItems = {"Bunny Foot", "Wolf Pelt", "Alpha Wolf Pelt", "Bear Pelt", "Arctic Fox Pelt", "Polar Bear Pelt"}
+
+-- Tạo nút Bring cho từng vật phẩm (theo kiểu Fluent)
+for _, itemName in ipairs(PeltsItems) do
+    TabItem:AddButton({
+        Name = "Bring " .. itemName,
+        Description = "Hút toàn bộ vật phẩm '" .. itemName .. "' về quanh bạn",
+        Callback = function()
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+
+            if not hrp then
+                warn("[❌] Không tìm thấy HumanoidRootPart.")
+                return
+            end
+
+            local itemsFolder = workspace:FindFirstChild("Items")
+            if not itemsFolder then
+                warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+                return
+            end
+
+            local count = 0
+            for _, item in ipairs(itemsFolder:GetChildren()) do
+                if item:IsA("Model") and string.lower(item.Name):find(string.lower(itemName)) then
+                    local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+                    if part then
+                        part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                        task.wait(0.02) -- chống lag
+                        count += 1
+                    end
+                end
+            end
+
+            if count > 0 then
+                print(("[✅] Bring '%s' thành công (%d vật phẩm)!"):format(itemName, count))
+            else
+                warn(("[⚠️] Không tìm thấy vật phẩm '%s' trong map."):format(itemName))
+            end
+        end
+    })
+end
+
+
+
+local Section = TabItem:AddSection({"Junk"})
+
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Danh sách vật phẩm muốn tạo nút Bring
+local junkItems = {
+    "Bolt", "Sheet Metal", "UFO Junk", "UFO Component", "Broken Fan", "Old Radio",
+    "Broken Microwave", "Tyre", "Metal Chair", "Old Car Engine", "Washing Machine",
+    "Cultist Experiment", "Cultist Prototype", "UFO Scrap", "Cultist Gem",
+    "Gem of the Forest Fragment", "Feather", "Old Boot"
+}
+
+-- Tạo nút Bring cho từng vật phẩm (theo kiểu Fluent)
+for _, itemName in ipairs(junkItems) do
+    TabItem:AddButton({
+        Name = "Bring " .. itemName,
+        Description = "Hút toàn bộ vật phẩm '" .. itemName .. "' về quanh bạn",
+        Callback = function()
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
+
+            if not hrp then
+                warn("[❌] Không tìm thấy HumanoidRootPart.")
+                return
+            end
+
+            local itemsFolder = workspace:FindFirstChild("Items")
+            if not itemsFolder then
+                warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+                return
+            end
+
+            local count = 0
+            for _, item in ipairs(itemsFolder:GetChildren()) do
+                if item:IsA("Model") and string.lower(item.Name):find(string.lower(itemName)) then
+                    local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+                    if part then
+                        part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                        task.wait(0.02) -- chống lag
+                        count += 1
+                    end
+                end
+            end
+
+            if count > 0 then
+                print(("[✅] Bring '%s' thành công (%d vật phẩm)!"):format(itemName, count))
+            else
+                warn(("[⚠️] Không tìm thấy vật phẩm '%s' trong map."):format(itemName))
+            end
+        end
+    })
+end
+
+
+
+
 
 
 
 local Section = TabItem:AddSection({"Food"})
 
 
--- 🍖 Bring Food Items (Manual Button Version)
-local selectedFoodItems = {}
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-TabItem:AddDropdown({
-    Name = "Select Food Items",
-    Description = "Chọn các vật phẩm thức ăn (Food) để mang theo",
-    Options = foodItems, -- ⚠️ Danh sách item thức ăn
-    Default = {},
-    MultiSelect = true,
-    Callback = function(options)
-        selectedFoodItems = options
-    end
-})
+-- Danh sách vật phẩm muốn tạo nút Bring
+local foodItems = {
+    "Cake", "Cooked Steak", "Cooked Morsel", "Ribs", "Salmon", "Cooked Salmon",
+    "Cooked Ribs", "Mackerel", "Cooked Mackerel", "Steak", "Morsel", "Berry",
+    "Carrot", "Stew", "Hearty Stew", "Corn", "Pumpkin", "Meat? Sandwich",
+    "Seafood Chowder", "Steak Dinner", "Pumpkin Soup", "BBQ Ribs", "Carrot Cake",
+    "Jar o' Jelly", "Clownfish", "Swordfish", "Jellyfish", "Char", "Eel", "Shark",
+    "Cooked Clownfish", "Cooked Swordfish", "Cooked Jellyfish",
+    "Cooked Char", "Cooked Eel", "Cooked Shark"
+}
 
-TabItem:AddButton({
-    Name = "Bring Selected Food Items",
-    Description = "Mang toàn bộ vật phẩm thức ăn đã chọn về quanh bạn",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:FindFirstChild("HumanoidRootPart")
+-- Tạo nút Bring cho từng vật phẩm (theo kiểu Fluent)
+for _, itemName in ipairs(foodItems) do
+    TabItem:AddButton({
+        Name = "Bring " .. itemName,
+        Description = "Hút toàn bộ vật phẩm '" .. itemName .. "' về quanh bạn",
+        Callback = function()
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if not hrp then
-            warn("[Food] ❌ Không tìm thấy HumanoidRootPart.")
-            return
-        end
+            if not hrp then
+                warn("[❌] Không tìm thấy HumanoidRootPart.")
+                return
+            end
 
-        local itemsFolder = workspace:FindFirstChild("Items")
-        if not itemsFolder then
-            warn("[Food] ❌ Không tìm thấy workspace.Items.")
-            return
-        end
+            local itemsFolder = workspace:FindFirstChild("Items")
+            if not itemsFolder then
+                warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+                return
+            end
 
-        if #selectedFoodItems == 0 then
-            warn("[Food] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
-            return
-        end
-
-        for _, item in pairs(itemsFolder:GetChildren()) do
-            if item:IsA("Model") then
-                for _, selectedName in ipairs(selectedFoodItems) do
-                    if string.lower(item.Name) == string.lower(selectedName) then
-                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
-                        if mainPart then
-                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5, 5), 0, math.random(-5, 5))
-                            task.wait(0.02)
-                        end
+            local count = 0
+            for _, item in ipairs(itemsFolder:GetChildren()) do
+                if item:IsA("Model") and string.lower(item.Name):find(string.lower(itemName)) then
+                    local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+                    if part then
+                        part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                        task.wait(0.02) -- chống lag
+                        count += 1
                     end
                 end
             end
-        end
-    end
-})
 
-
-local Section = TabItem:AddSection({"Pelts"})
-
--- 🦊 Bring Pelts Items (Manual Button Version)
-local selectedPeltsItems = {}
-
-TabItem:AddDropdown({
-    Name = "Select Pelts Items",
-    Description = "Chọn các vật phẩm Pelts mà bạn muốn mang theo",
-    Options = PeltsItems, -- ⚠️ Danh sách các Pelts item
-    Default = {},
-    MultiSelect = true,
-    Callback = function(options)
-        selectedPeltsItems = options
-    end
-})
-
-TabItem:AddButton({
-    Name = "Bring Selected Pelts Items",
-    Description = "Mang toàn bộ vật phẩm Pelts đã chọn về quanh bạn",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-
-        if not hrp then
-            warn("[Pelts] ❌ Không tìm thấy HumanoidRootPart.")
-            return
-        end
-
-        local itemsFolder = workspace:FindFirstChild("Items")
-        if not itemsFolder then
-            warn("[Pelts] ❌ Không tìm thấy workspace.Items.")
-            return
-        end
-
-        if #selectedPeltsItems == 0 then
-            warn("[Pelts] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
-            return
-        end
-
-        for _, item in pairs(itemsFolder:GetChildren()) do
-            if item:IsA("Model") then
-                for _, selectedName in ipairs(selectedPeltsItems) do
-                    if string.lower(item.Name) == string.lower(selectedName) then
-                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
-                        if mainPart then
-                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5, 5), 0, math.random(-5, 5))
-                            task.wait(0.02)
-                        end
-                    end
-                end
+            if count > 0 then
+                print(("[✅] Bring '%s' thành công (%d vật phẩm)!"):format(itemName, count))
+            else
+                warn(("[⚠️] Không tìm thấy vật phẩm '%s' trong map."):format(itemName))
             end
         end
-    end
-})
+    })
+end
 
 
-local Section = TabItem:AddSection({"Medicine"})
 
-
--- 💊 Bring Medical Items (Manual Button Version)
-local selectedMedicalItems = {}
-
-TabItem:AddDropdown({
-    Name = "Select Medical Items",
-    Description = "Chọn các vật phẩm y tế (Medical) bạn muốn mang theo",
-    Options = medicalItems, -- ⚠️ Danh sách các vật phẩm y tế
-    Default = {},
-    MultiSelect = true,
-    Callback = function(options)
-        selectedMedicalItems = options
-    end
-})
-
-TabItem:AddButton({
-    Name = "Bring Selected Medical Items",
-    Description = "Mang toàn bộ vật phẩm y tế đã chọn về quanh bạn",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-
-        if not hrp then
-            warn("[Medical] ❌ Không tìm thấy HumanoidRootPart.")
-            return
-        end
-
-        local itemsFolder = workspace:FindFirstChild("Items")
-        if not itemsFolder then
-            warn("[Medical] ❌ Không tìm thấy workspace.Items.")
-            return
-        end
-
-        if #selectedMedicalItems == 0 then
-            warn("[Medical] ⚠️ Bạn chưa chọn vật phẩm nào để bring.")
-            return
-        end
-
-        for _, item in pairs(itemsFolder:GetChildren()) do
-            if item:IsA("Model") then
-                for _, selectedName in ipairs(selectedMedicalItems) do
-                    if string.lower(item.Name) == string.lower(selectedName) then
-                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
-                        if mainPart then
-                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-5, 5), 0, math.random(-5, 5))
-                            task.wait(0.02)
-                        end
-                    end
-                end
-            end
-        end
-    end
-})
 
 
 local Section = TabItem:AddSection({"Equipment"})
 
 
--- ⚙️ Bring Equipment Items (Manual Button Version)
-local selectedEquipmentItems = {}
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-TabItem:AddDropdown({
-    Name = "Select Equipment Items",
-    Description = "Chọn các vật phẩm trang bị muốn mang",
-    Default = {},
-    Options = equipmentItems, -- ⚠️ Danh sách các vật phẩm trang bị
-    MultiSelect = true,
-    Callback = function(options)
-        selectedEquipmentItems = options
-    end
-})
+-- Danh sách vật phẩm muốn tạo nút Bring
+local equipmentItems = {
+    "Revolver", "Rifle", "Revolver Ammo", "Rifle Ammo", "Giant Sack", "Good Sack",
+    "Strong Axe", "Good Axe", "Frozen Shuriken", "Tactical Shotgun", "Snowball", "Kunai",
+    "Leather Body", "Poison Armour", "Iron Body", "Thorn Body", "Riot Shield", "Alien Armour",
+    "Red Key", "Blue Key", "Yellow Key", "Grey Key", "Frog Key", "Chili Seeds",
+    "Flower Seeds", "Berry Seeds", "Firefly Seeds", "Old Rod", "Good Rod", "Strong Rod"
+}
 
-TabItem:AddButton({
-    Name = "Bring Selected Equipment Items",
-    Description = "Mang toàn bộ trang bị đã chọn về quanh bạn (hãy mở khóa ít nhất 1 khu vực trước)",
-    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:FindFirstChild("HumanoidRootPart")
+-- Tạo nút Bring cho từng vật phẩm (theo kiểu Fluent)
+for _, itemName in ipairs(equipmentItems) do
+    TabItem:AddButton({
+        Name = "Bring " .. itemName,
+        Description = "Hút toàn bộ vật phẩm '" .. itemName .. "' về quanh bạn",
+        Callback = function()
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:FindFirstChild("HumanoidRootPart")
 
-        if not hrp then
-            warn("[Equipment] ❌ Không tìm thấy HumanoidRootPart.")
-            return
-        end
+            if not hrp then
+                warn("[❌] Không tìm thấy HumanoidRootPart.")
+                return
+            end
 
-        local itemsFolder = workspace:FindFirstChild("Items")
-        if not itemsFolder then
-            warn("[Equipment] ❌ Không tìm thấy workspace.Items.")
-            return
-        end
+            local itemsFolder = workspace:FindFirstChild("Items")
+            if not itemsFolder then
+                warn("[❌] Không tìm thấy thư mục 'Items' trong workspace.")
+                return
+            end
 
-        if #selectedEquipmentItems == 0 then
-            warn("[Equipment] ⚠️ Bạn chưa chọn vật phẩm nào để mang.")
-            return
-        end
-
-        for _, item in pairs(itemsFolder:GetChildren()) do
-            if item:IsA("Model") then
-                for _, selectedName in ipairs(selectedEquipmentItems) do
-                    if string.lower(item.Name) == string.lower(selectedName) then
-                        local mainPart = item:FindFirstChildWhichIsA("BasePart")
-                        if mainPart then
-                            mainPart.CFrame = hrp.CFrame * CFrame.new(math.random(-6, 6), 0, math.random(-6, 6))
-                            task.wait(0.02)
-                        end
+            local count = 0
+            for _, item in ipairs(itemsFolder:GetChildren()) do
+                if item:IsA("Model") and string.lower(item.Name):find(string.lower(itemName)) then
+                    local part = item:FindFirstChildWhichIsA("BasePart") or (item:IsA("BasePart") and item)
+                    if part then
+                        part.CFrame = hrp.CFrame + Vector3.new(math.random(-7, 7), 0, math.random(-7, 7))
+                        task.wait(0.02) -- chống lag
+                        count += 1
                     end
                 end
             end
+
+            if count > 0 then
+                print(("[✅] Bring '%s' thành công (%d vật phẩm)!"):format(itemName, count))
+            else
+                warn(("[⚠️] Không tìm thấy vật phẩm '%s' trong map."):format(itemName))
+            end
         end
-    end
-})
+    })
+end
+
 
 
 ---------------------------------------------------------------------------------
