@@ -29,7 +29,7 @@ local TabStats = Window:MakeTab({"Chỉ Số", "signal"})
 
 local TabTeleport = Window:MakeTab({"Dịch Chuyển", "locate"})
 
-local TabVisual = Window:MakeTab({"Hình Ảnh", "user"})
+local TabVisual = Window:MakeTab({"Giao Diện", "user"})
 
 local TabShop = Window:MakeTab({"Cửa hàng", "shoppingCart"})
 
@@ -39,7 +39,7 @@ TabDiscord:AddDiscordInvite({
     Name = "Hutao Hub [Free] | Community",
     Description = "Tham gia nhóm discord để nhận thông báo update mới",
     Logo = "rbxassetid://90508203972003",
-    Invite = "http://discord.gg/7aR7kNVt4g",
+    Invite = "https://discord.gg/b7eNFdXPP",
 })
 
 
@@ -142,6 +142,103 @@ TabItem:AddToggle({
     end
 })
 
+
+---------------------------------------------------------------------------------
+-- Phần Máy Chủ
+---------------------------------------------------------------------------------
+
+local Section = TabServer:AddSection({"Máy Chủ"})
+
+TabServer:AddButton({
+    Name = "Tham Gia Lại",
+    Callback = function()
+        local TeleportService = game:GetService("TeleportService")
+        local Players = game:GetService("Players")
+        local PlaceId = game.PlaceId
+        local JobId = game.JobId
+
+        -- Teleport lại chính server hiện tại
+        TeleportService:TeleportToPlaceInstance(PlaceId, JobId, Players.LocalPlayer)
+    end
+})
+
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local PlaceId = game.PlaceId
+
+-- ⚙️ Nút chuyển server (Server Hop)
+TabServer:AddButton({
+    Name = "Đổi Máy Chủ Ít Người",
+    Callback = function()
+        local function findServer()
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(game:HttpGetAsync(
+                    "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+                ))
+            end)
+
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                        return server.id
+                    end
+                end
+            end
+            return nil
+        end
+
+        local serverId = findServer()
+        if serverId then
+            TeleportService:TeleportToPlaceInstance(PlaceId, serverId)
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Error 404",
+                Text = "Không Thể Tìm Thấy Máy Chủ",
+                Duration = 4
+            })
+        end
+    end
+})
+
+
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local PlaceId = game.PlaceId
+
+-- ⚙️ Nút chuyển server (Server Hop)
+TabServer:AddButton({
+    Name = "Đổi Máy Chủ Mới",
+    Callback = function()
+        local function findServer()
+            local success, result = pcall(function()
+                return HttpService:JSONDecode(game:HttpGetAsync(
+                    "https://games.roblox.com/v1/games/" .. PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+                ))
+            end)
+
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                        return server.id
+                    end
+                end
+            end
+            return nil
+        end
+
+        local serverId = findServer()
+        if serverId then
+            TeleportService:TeleportToPlaceInstance(PlaceId, serverId)
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Error 404",
+                Text = "Không Thể Tìm Thấy Máy Chủ",
+                Duration = 4
+            })
+        end
+    end
+})
 
 
 ---------------------------------------------------------------------------------
@@ -267,6 +364,8 @@ TabTeleport:AddButton({
     end
 })
 
+
+local Section = TabTeleport:AddSection({"Hòn Đảo"})
 
 
 ------------------------------------------------
@@ -446,6 +545,150 @@ TabTeleport:AddToggle({
 	end
 })
 
+
+---------------------------------------------------------------------------------
+-- Phần Giao Diện
+---------------------------------------------------------------------------------
+
+TabVisual:AddToggle({
+    Name = "ESP Player",
+    Default = false,
+    Callback = function(Value)
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local Camera = workspace.CurrentCamera
+        local LocalPlayer = Players.LocalPlayer
+
+        local drawingsESP = {}
+        local espConnection, addedConn, removingConn, recoveryLoop
+
+        local ESP_COLOR = Color3.fromRGB(0, 255, 0)
+
+        local function createOrRepairESP(player)
+            if not player.Character then return end
+            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if not hrp or not humanoid then return end
+
+            local data = drawingsESP[player]
+            if not data then
+                local text = Drawing.new("Text")
+                text.Size = 14
+                text.Center = true
+                text.Outline = true
+                text.Visible = false
+                text.Color = ESP_COLOR
+                drawingsESP[player] = { text = text, humanoid = humanoid }
+            else
+                if not data.text then
+                    local text = Drawing.new("Text")
+                    text.Size = 14
+                    text.Center = true
+                    text.Outline = true
+                    text.Visible = false
+                    text.Color = ESP_COLOR
+                    data.text = text
+                end
+                data.humanoid = humanoid
+            end
+        end
+
+        local function removeESP(player)
+            local data = drawingsESP[player]
+            if data then
+                pcall(function() if data.text then data.text:Remove() end end)
+            end
+            drawingsESP[player] = nil
+        end
+
+        local function scanAllPlayers()
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    createOrRepairESP(player)
+                end
+            end
+        end
+
+        local function startESP()
+            if espConnection then return end
+            scanAllPlayers()
+
+            espConnection = RunService.RenderStepped:Connect(function()
+                for player, data in pairs(drawingsESP) do
+                    local character = player.Character
+                    local humanoid = data.humanoid or (character and character:FindFirstChildOfClass("Humanoid"))
+                    if character and humanoid and character:FindFirstChild("HumanoidRootPart") then
+                        local hrp = character.HumanoidRootPart
+                        if not data.text then
+                            createOrRepairESP(player)
+                            data = drawingsESP[player]
+                        end
+
+                        local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2.5, 0))
+                        local dist = (hrp.Position - Camera.CFrame.Position).Magnitude
+                        local hp = math.floor(humanoid.Health)
+                        local maxhp = math.floor(humanoid.MaxHealth)
+
+                        if data.text then
+                            data.text.Text = string.format("%s | %.0fm | %d/%d HP", player.Name, dist, hp, maxhp)
+                            data.text.Position = Vector2.new(pos.X, pos.Y)
+                            data.text.Color = ESP_COLOR
+                            data.text.Visible = onScreen and humanoid.Health > 0
+                        end
+                    else
+                        if data.text then data.text.Visible = false end
+                    end
+                end
+            end)
+
+            addedConn = Players.PlayerAdded:Connect(function(player)
+                if player ~= LocalPlayer then
+                    player.CharacterAdded:Connect(function()
+                        task.wait(1)
+                        createOrRepairESP(player)
+                    end)
+                end
+            end)
+
+            removingConn = Players.PlayerRemoving:Connect(function(player)
+                removeESP(player)
+            end)
+
+            recoveryLoop = task.spawn(function()
+                while task.wait(1) and Value do
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer then
+                            if not drawingsESP[player] or not drawingsESP[player].text then
+                                createOrRepairESP(player)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+
+        local function stopESP()
+            if espConnection then espConnection:Disconnect() end
+            if addedConn then addedConn:Disconnect() end
+            if removingConn then removingConn:Disconnect() end
+            if recoveryLoop then task.cancel(recoveryLoop) end
+
+            for _, data in pairs(drawingsESP) do
+                pcall(function() if data.text then data.text:Remove() end end)
+            end
+            table.clear(drawingsESP)
+            espConnection, addedConn, removingConn, recoveryLoop = nil, nil, nil, nil
+        end
+
+        if Value then
+            startESP()
+        else
+            stopESP()
+        end
+    end
+})
+
+
 ---------------------------------------------------------------------------------
 -- Phần Cửa Hàng
 ---------------------------------------------------------------------------------
@@ -541,7 +784,7 @@ TabShop:AddToggle({
 
 
 
-local Section = TabShop:AddSection({"Võ"})
+local Section = TabShop:AddSection({"Võ Thuật"})
 
 
 -- 🥋 MUA FIGHTING STYLE
@@ -872,6 +1115,161 @@ TabSettings:AddToggle({
 })
 
 
+-- 🧩 Fast Attack Toggle
+TabSettings:AddToggle({
+    Name = "Đánh Cực Nhanh",
+    Default = true,
+    Callback = function(Value)
+        _G.FastAttack = Value
+        if Value then
+            -- Kích hoạt Fast Attack
+            local _ENV = (getgenv or getrenv or getfenv)()
+
+            local function SafeWaitForChild(parent, childName)
+                local success, result = pcall(function()
+                    return parent:WaitForChild(childName)
+                end)
+                if not success or not result then
+                    warn("Không tìm thấy: " .. childName)
+                end
+                return result
+            end
+
+            local function WaitChilds(path, ...)
+                local last = path
+                for _, child in {...} do
+                    last = last:FindFirstChild(child) or SafeWaitForChild(last, child)
+                    if not last then break end
+                end
+                return last
+            end
+
+            local VirtualInputManager = game:GetService("VirtualInputManager")
+            local CollectionService = game:GetService("CollectionService")
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local TeleportService = game:GetService("TeleportService")
+            local RunService = game:GetService("RunService")
+            local Players = game:GetService("Players")
+            local Player = Players.LocalPlayer
+
+            if not Player then
+                warn("Không tìm thấy người chơi.")
+                return
+            end
+
+            local Remotes = SafeWaitForChild(ReplicatedStorage, "Remotes")
+            if not Remotes then return end
+
+            local Validator = SafeWaitForChild(Remotes, "Validator")
+            local CommF = SafeWaitForChild(Remotes, "CommF_")
+            local CommE = SafeWaitForChild(Remotes, "CommE")
+
+            local ChestModels = SafeWaitForChild(workspace, "ChestModels")
+            local WorldOrigin = SafeWaitForChild(workspace, "_WorldOrigin")
+            local Characters = SafeWaitForChild(workspace, "Characters")
+            local Enemies = SafeWaitForChild(workspace, "Enemies")
+            local Map = SafeWaitForChild(workspace, "Map")
+
+            local EnemySpawns = SafeWaitForChild(WorldOrigin, "EnemySpawns")
+            local Locations = SafeWaitForChild(WorldOrigin, "Locations")
+
+            local RenderStepped = RunService.RenderStepped
+            local Heartbeat = RunService.Heartbeat
+            local Stepped = RunService.Stepped
+
+            local Modules = SafeWaitForChild(ReplicatedStorage, "Modules")
+            local Net = SafeWaitForChild(Modules, "Net")
+
+            local Settings = {
+                AutoClick = true,
+                ClickDelay = 0,
+            }
+
+            local Module = {}
+
+            Module.FastAttack = (function()
+                if _ENV.rz_FastAttack then
+                    return _ENV.rz_FastAttack
+                end
+
+                local FastAttack = {
+                    Distance = 100,
+                    attackMobs = true,
+                    attackPlayers = true,
+                    Equipped = nil
+                }
+
+                local RegisterAttack = SafeWaitForChild(Net, "RE/RegisterAttack")
+                local RegisterHit = SafeWaitForChild(Net, "RE/RegisterHit")
+
+                local function IsAlive(character)
+                    return character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0
+                end
+
+                local function ProcessEnemies(OthersEnemies, Folder)
+                    local BasePart = nil
+                    for _, Enemy in Folder:GetChildren() do
+                        local Head = Enemy:FindFirstChild("Head")
+                        if Head and IsAlive(Enemy) and Player:DistanceFromCharacter(Head.Position) < FastAttack.Distance then
+                            if Enemy ~= Player.Character then
+                                table.insert(OthersEnemies, { Enemy, Head })
+                                BasePart = Head
+                            end
+                        end
+                    end
+                    return BasePart
+                end
+
+                function FastAttack:Attack(BasePart, OthersEnemies)
+                    if not BasePart or #OthersEnemies == 0 then return end
+                    RegisterAttack:FireServer(Settings.ClickDelay or 0)
+                    RegisterHit:FireServer(BasePart, OthersEnemies)
+                end
+
+                function FastAttack:AttackNearest()
+                    local OthersEnemies = {}
+                    local Part1 = ProcessEnemies(OthersEnemies, Enemies)
+                    local Part2 = ProcessEnemies(OthersEnemies, Characters)
+                    if #OthersEnemies > 0 then
+                        self:Attack(Part1 or Part2, OthersEnemies)
+                    else
+                        task.wait(0)
+                    end
+                end
+
+                function FastAttack:BladeHits()
+                    local Equipped = IsAlive(Player.Character) and Player.Character:FindFirstChildOfClass("Tool")
+                    if Equipped and Equipped.ToolTip ~= "Gun" then
+                        self:AttackNearest()
+                    else
+                        task.wait(0)
+                    end
+                end
+
+                task.spawn(function()
+                    while task.wait(Settings.ClickDelay) do
+                        if Settings.AutoClick and _G.FastAttack then
+                            FastAttack:BladeHits()
+                        elseif not _G.FastAttack then
+                            break
+                        end
+                    end
+                end)
+
+                _ENV.rz_FastAttack = FastAttack
+                return FastAttack
+            end)()
+
+        else
+            -- ❌ Tắt Fast Attack
+            _G.FastAttack = false
+            warn("Fast Attack đã tắt!")
+        end
+    end
+})
+
+
+
 
 ------------------------------------------------------------
 -- ⚙️ Infinite Energy & Infinite Soru (WindUI Style)
@@ -1025,7 +1423,7 @@ TabSettings:AddButton({
     Callback = function()
         if _G.CodeSelect then
             game:GetService("ReplicatedStorage").Remotes.Redeem:InvokeServer(_G.CodeSelect)
-        else
+        else 
             warn("⚠️ Bạn chưa chọn code nào!")
         end
     end
@@ -1045,4 +1443,144 @@ TabSettings:AddButton({
         end
     end
 })
+
+
+
+local Section = TabSettings:AddSection({"Mục Tiêu"})
+
+
+-- ⚙️ CÀI ĐẶT AIMBOT
+getgenv().setting = {
+	Fov = 80,
+	Color = Color3.fromRGB(191, 255, 209),
+	LockPlayers = false,
+	LockPlayersBind = Enum.KeyCode.L,
+	resetPlayersBind = Enum.KeyCode.P,
+}
+
+local Playersaimbot = nil
+local players = game:GetService("Players")
+local localPlayer = players.LocalPlayer
+local currentCamera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
+local AimBotEnabled = false
+local PlayersPosition = nil
+
+-- 🟢 Vòng tròn FOV
+local circle = Drawing.new("Circle")
+circle.Thickness = 2
+circle.Color = getgenv().setting.Color
+circle.NumSides = 100
+circle.Filled = false
+circle.Transparency = 1
+circle.Radius = getgenv().setting.Fov
+circle.Visible = false
+
+local function updateCircle()
+	local viewport = currentCamera.ViewportSize
+	circle.Position = Vector2.new(viewport.X / 2, viewport.Y / 2)
+	circle.Radius = getgenv().setting.Fov
+	circle.Color = getgenv().setting.Color
+end
+
+RunService.RenderStepped:Connect(function()
+	updateCircle()
+	circle.Visible = AimBotEnabled
+end)
+
+-- 🔎 Tìm mục tiêu gần nhất trong FOV
+task.spawn(function()
+	while task.wait() do
+		if AimBotEnabled then
+			local closestPlayer, closestDistance = nil, getgenv().setting.Fov
+			for _, v in pairs(players:GetPlayers()) do
+				if v ~= localPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+					local pos, onScreen = currentCamera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+					if onScreen then
+						local screenCenter = Vector2.new(currentCamera.ViewportSize.X / 2, currentCamera.ViewportSize.Y / 2)
+						local distance = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+						if distance <= closestDistance then
+							closestDistance = distance
+							closestPlayer = v
+						end
+					end
+				end
+			end
+			if closestPlayer then
+				Playersaimbot = closestPlayer.Name
+			end
+		end
+	end
+end)
+
+-- 📍 Cập nhật vị trí mục tiêu
+RunService.RenderStepped:Connect(function()
+	if AimBotEnabled and Playersaimbot then
+		local target = players:FindFirstChild(Playersaimbot)
+		if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+			PlayersPosition = target.Character.HumanoidRootPart.Position
+		end
+	end
+end)
+
+-- 🧠 Hook RemoteEvent để Aim
+task.spawn(function()
+	local mt = getrawmetatable(game)
+	local old = mt.__namecall
+	setreadonly(mt, false)
+	mt.__namecall = newcclosure(function(...)
+		local self, method = ..., getnamecallmethod()
+		local args = { ... }
+		if tostring(method) == "FireServer" and tostring(args[1]) == "RemoteEvent" then
+			if AimBotEnabled and Playersaimbot and PlayersPosition then
+				args[2] = PlayersPosition
+				return old(unpack(args))
+			end
+		end
+		return old(...)
+	end)
+end)
+
+-- ⚔️ Tự động Aim
+RunService.RenderStepped:Connect(function()
+	if AimBotEnabled and Playersaimbot and localPlayer.Character then
+		local weapon = localPlayer.Character:FindFirstChildOfClass("Tool")
+		local target = players:FindFirstChild(Playersaimbot)
+		if weapon and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+			local args = { target.Character.HumanoidRootPart.Position, target.Character.HumanoidRootPart }
+			if weapon:FindFirstChild("RemoteFunctionShoot") then
+				weapon.RemoteFunctionShoot:InvokeServer(unpack(args))
+			elseif weapon:FindFirstChild("RemoteEvent") then
+				weapon.RemoteEvent:FireServer(unpack(args))
+			end
+		end
+	end
+end)
+
+-- ⌨️ Phím tắt bật/tắt hoặc reset
+game:GetService("UserInputService").InputBegan:Connect(function(io, p)
+	if p then return end
+	if io.KeyCode == getgenv().setting.LockPlayersBind then
+		AimBotEnabled = not AimBotEnabled
+		circle.Visible = AimBotEnabled
+		print(AimBotEnabled and "🔵 AimBot ON" or "🔴 AimBot OFF")
+	elseif io.KeyCode == getgenv().setting.resetPlayersBind then
+		Playersaimbot = nil
+		PlayersPosition = nil
+		print("♻️ Reset AimBot Target")
+	end
+end)
+
+-- 🧩 TOGGLE DẠNG WINDUI CHUẨN
+TabSettings:AddToggle({
+	Name = "Aimbot Skill",
+	Default = false,
+	Callback = function(Value)
+		AimBotEnabled = Value
+		circle.Visible = Value
+		print(Value and "🔵 AimBot ON" or "🔴 AimBot OFF")
+	end
+})
+
+
 
