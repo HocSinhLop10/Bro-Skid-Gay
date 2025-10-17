@@ -1815,7 +1815,7 @@ TabShop:AddButton({
 })
 
 TabShop:AddButton({
-    Name = "Buy Soru [ $25,000 ]",
+    Name = "Buy Soru [ $100,000 ]",
     Description = "Mua kỹ năng Soru (Dịch chuyển nhanh)",
     Callback = function()
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyHaki", "Soru")
