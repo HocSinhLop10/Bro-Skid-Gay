@@ -691,7 +691,7 @@ local WeaponList = {"Melee", "Sword", "Fruit", "Gun"}
 _G.SelectWeapon = _G.SelectWeapon or "Melee"
 
 TabFarm:AddDropdown({
-	Name = "Select Weapon",
+	Name = "Chọn Vũ Khí",
 	Options = WeaponList,
 	Default = _G.SelectWeapon,
 	Callback = function(Value)
@@ -716,7 +716,7 @@ end)
 ------------------------------------------------
 local ModeList = {"Quest", "Normal", "Nearest"}
 TabFarm:AddDropdown({
-	Name = "Select Farm Mode",
+	Name = "Chọn Chế Độ",
 	Options = ModeList,
 	Default = _G.FarmMode,
 	Callback = function(Value)
@@ -873,7 +873,7 @@ end)
 -- 🧠 AUTO FARM CHÍNH
 ------------------------------------------------
 TabFarm:AddToggle({
-	Name = "Start Auto Farm",
+	Name = "Tự Động Cày Cấp",
 	Default = false,
 	Callback = function(v)
 		_G.AutoFarm = v
