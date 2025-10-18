@@ -50,19 +50,23 @@ TabDiscord:AddDiscordInvite({
 
 local Section = TabFarm:AddSection({"Cấp Độ"})
 
-
 -- 🌍 XÁC ĐỊNH WORLD
+local World1, World2, World3 = false, false, false
 if game.PlaceId == 2753915549 then
-	World1 = true;
+	World1 = true
 elseif game.PlaceId == 4442272183 then
-	World2 = true;
+	World2 = true
 elseif game.PlaceId == 7449423635 then
-	World3 = true;
-end;
+	World3 = true
+end
+
+-- ⚙️ CÀI ĐẶT MODE FARM
+_G.FarmMode = _G.FarmMode or "Quest" -- Quest | Normal | Nearest
 
 -- 📋 CHECK QUEST
+local Mon, LevelQuest, NameQuest, NameMon, CFrameQuest, CFrameMon
 function CheckQuest()
-	local MyLevel = game.Players.LocalPlayer.Data.Level.Value
+	local MyLevel = game:GetService("Players").LocalPlayer.Data.Level.Value
 	if World1 then
 		if MyLevel >= 1 and MyLevel <= 9 then
 			Mon = "Bandit"
@@ -680,9 +684,9 @@ function CheckQuest()
 	end;
 end;
 
--- ⚔️ DANH SÁCH VŨ KHÍ
+-- ⚔️ VŨ KHÍ
 local WeaponList = {"Melee", "Sword", "Fruit", "Gun"}
-_G.SelectWeapon = "Melee"
+_G.SelectWeapon = _G.SelectWeapon or "Melee"
 
 TabFarm:AddDropdown({
 	Name = "Chọn Vũ Khí",
@@ -693,384 +697,193 @@ TabFarm:AddDropdown({
 	end
 })
 
--- 🔁 TỰ NHẬN DIỆN VŨ KHÍ
-task.spawn(function()
-	while task.wait(1) do
-		pcall(function()
-			for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
-				if v.ToolTip == _G.SelectWeapon then
-					_G.SelectWeapon = v.Name
-				end
-			end
-		end)
-	end
-end)
-
--- ⚙️ CHẾ ĐỘ FARM
-local FarmModes = {"Normal", "Auto Quest", "Nearest"}
-_G.FarmMode = "Normal"
-
+-- 🌈 CHỌN CHẾ ĐỘ FARM
+local ModeList = {"Quest", "Normal", "Nearest"}
 TabFarm:AddDropdown({
-	Name = "Chế Độ Cày",
-	Options = FarmModes,
+	Name = "Chọn Chế Độ Cày",
+	Options = ModeList,
 	Default = _G.FarmMode,
 	Callback = function(Value)
 		_G.FarmMode = Value
 	end
 })
 
-------------------------------------------------
--- 💨 HÀM XUYÊN TƯỜNG (BodyClip / Noclip)
-------------------------------------------------
-local noclipConnection
+-- 🪶 BAY MƯỢT – FIX FULL GIẬT & VĂNG
+local flying = false
+local flyspeed = 300
 
-function EnableNoclip(enable)
+function StopFlying()
+	flying = false
+	local char = game.Players.LocalPlayer.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		for _,v in pairs(char.HumanoidRootPart:GetChildren()) do
+			if v:IsA("BodyVelocity") or v:IsA("BodyGyro") then v:Destroy() end
+		end
+	end
+end
+
+function FlyTo(cf)
 	local player = game.Players.LocalPlayer
-	if enable then
-		if noclipConnection then noclipConnection:Disconnect() end
-		noclipConnection = game:GetService("RunService").Stepped:Connect(function()
-			if player and player.Character then
-				for _, part in pairs(player.Character:GetDescendants()) do
-					if part:IsA("BasePart") then
-						part.CanCollide = false
-					end
+	local char = player.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+	local hrp = char.HumanoidRootPart
+	StopFlying()
+	flying = true
+
+	local bv = Instance.new("BodyVelocity", hrp)
+	bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	bv.P = 1e4
+
+	local bg = Instance.new("BodyGyro", hrp)
+	bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+	bg.P = 1e4
+
+	task.spawn(function()
+		while flying and task.wait() do
+			if not hrp or not hrp.Parent then break end
+			local pos = cf.Position + Vector3.new(0,10,0)
+			local dir = (pos - hrp.Position)
+			if dir.Magnitude < 2 then
+				bv.Velocity = Vector3.zero
+				break
+			else
+				bv.Velocity = dir.Unit * flyspeed
+				bg.CFrame = CFrame.new(hrp.Position, pos)
+			end
+		end
+		StopFlying()
+	end)
+end
+
+-- ⚔️ HỖ TRỢ
+function AutoHaki()
+	pcall(function()
+		if not game.Players.LocalPlayer.Character:FindFirstChild("HasBuso") then
+			game.ReplicatedStorage.Remotes.CommF_:InvokeServer("Buso")
+		end
+	end)
+end
+
+function EquipWeapon(weapon)
+	local plr = game.Players.LocalPlayer
+	local tool = plr.Backpack:FindFirstChild(weapon)
+	if tool then
+		plr.Character.Humanoid:EquipTool(tool)
+	end
+end
+
+function DoAttack()
+	pcall(function()
+		local tool = game.Players.LocalPlayer.Character:FindFirstChildOfClass("Tool")
+		if tool then tool:Activate() end
+	end)
+end
+
+-- ⚰️ KHÔNG DỪNG KHI CHẾT
+local plr = game.Players.LocalPlayer
+plr.CharacterAdded:Connect(function(char)
+	task.spawn(function()
+		repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
+		if _G.AutoFarm then
+			task.wait(1)
+			CheckQuest()
+			print("✅ Hồi sinh - tiếp tục farm")
+		end
+	end)
+end)
+
+-- 🚫 NOCLIP
+local noclip
+function EnableNoclip(v)
+	local plr = game.Players.LocalPlayer
+	if v then
+		if noclip then noclip:Disconnect() end
+		noclip = game:GetService("RunService").Stepped:Connect(function()
+			if plr.Character then
+				for _,p in pairs(plr.Character:GetDescendants()) do
+					if p:IsA("BasePart") then p.CanCollide = false end
 				end
 			end
 		end)
 	else
-		if noclipConnection then
-			noclipConnection:Disconnect()
-			noclipConnection = nil
-		end
+		if noclip then noclip:Disconnect() end
 	end
 end
 
-------------------------------------------------
--- 🪶 BAY LƠ LỬNG MƯỢT + KHÔNG LỖI GUI (LinearVelocity + AlignOrientation)
-------------------------------------------------
-local flySpeed = 300
-local hoverOffset = 10
-local arriveDistance = 5
-
--- đảm bảo tạo LinearVelocity + Attachment + AlignOrientation cho HRP
-local function ensureFlyControl(hrp)
-	if not hrp then return nil, nil end
-
-	local attachment = hrp:FindFirstChild("SmoothFlyAttachment")
-	if not attachment then
-		attachment = Instance.new("Attachment")
-		attachment.Name = "SmoothFlyAttachment"
-		attachment.Parent = hrp
-	end
-
-	local lv = hrp:FindFirstChild("SmoothFlyVel")
-	if not lv then
-		lv = Instance.new("LinearVelocity")
-		lv.Name = "SmoothFlyVel"
-		lv.Attachment0 = attachment
-		pcall(function() lv.MaxForce = 1e6 end)
-		lv.VectorVelocity = Vector3.new(0,0,0)
-		lv.Parent = hrp
-	end
-
-	local ao = hrp:FindFirstChild("SmoothFlyRot")
-	if not ao then
-		ao = Instance.new("AlignOrientation")
-		ao.Name = "SmoothFlyRot"
-		local att1 = hrp:FindFirstChild("SmoothFlyAlignTarget") or Instance.new("Attachment", hrp)
-		att1.Name = "SmoothFlyAlignTarget"
-		ao.Attachment0 = attachment
-		ao.Attachment1 = att1
-		ao.MaxTorque = 1e5
-		ao.Responsiveness = 50
-		ao.RigidityEnabled = false
-		ao.Parent = hrp
-	end
-
-	return lv, ao
-end
-
-local function clearFlyControl(hrp)
-	if not hrp then return end
-	for _, n in pairs({"SmoothFlyVel", "SmoothFlyRot", "SmoothFlyAttachment", "SmoothFlyAlignTarget"}) do
-		local f = hrp:FindFirstChild(n)
-		if f then
-			pcall(function() f:Destroy() end)
-		end
-	end
-end
-
-function StopFlying()
-	local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-	if hrp then
-		clearFlyControl(hrp)
-	end
-end
-
--- FlyTo: nội suy velocity để mượt, gọi 1 lần cho mỗi target
-function FlyTo(targetCFrame)
-	local player = game.Players.LocalPlayer
-	if not player or not player.Character then return false end
-	local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-	if not hrp then return false end
-
-	local lv, ao = ensureFlyControl(hrp)
-	if not lv then return false end
-
-	local maxLoops = 300
-	local loops = 0
-	while _G.AutoFarm and loops < maxLoops and (hrp.Position - targetCFrame.Position).Magnitude > arriveDistance do
-		loops = loops + 1
-		task.wait(0.03)
-		local dir = (targetCFrame.Position - hrp.Position)
-		local dist = dir.Magnitude
-		if dist > 0.1 then
-			local desiredVel = dir.Unit * flySpeed
-			if dist < 12 then
-				desiredVel = dir.Unit * math.clamp(flySpeed * (dist/12), 30, flySpeed)
-			end
-			lv.VectorVelocity = lv.VectorVelocity:Lerp(desiredVel, 0.15)
-			local att1 = hrp:FindFirstChild("SmoothFlyAlignTarget")
-			if att1 then att1.WorldPosition = targetCFrame.Position end
-		else
-			lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0,0,0), 0.25)
-		end
-	end
-
-	if lv then
-		lv.VectorVelocity = lv.VectorVelocity:Lerp(Vector3.new(0,0,0), 0.6)
-	end
-	return true
-end
-
--- Hover coroutine: mượt theo target part, cập nhật liên tục
-local currentHoverThread = nil
-local stopHover = false
-local function StartHoverOverPart(targetPart)
-	-- stop previous hover if any
-	stopHover = true
-	if currentHoverThread then
-		task.wait(0.06)
-	end
-	stopHover = false
-
-	currentHoverThread = task.spawn(function()
-		local player = game.Players.LocalPlayer
-		while not stopHover and _G.AutoFarm do
-			pcall(function()
-				if not player or not player.Character then return end
-				local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-				if not hrp or not targetPart or not targetPart.Parent then return end
-
-				local lv, ao = ensureFlyControl(hrp)
-				if not lv then return end
-
-				local targetPos = targetPart.Position + Vector3.new(0, hoverOffset, 0)
-				local dir = (targetPos - hrp.Position)
-				local dist = dir.Magnitude
-				local desiredVel = Vector3.zero
-				if dist > 1 then
-					local speed = math.clamp(flySpeed * (dist / 10), 40, flySpeed)
-					desiredVel = dir.Unit * speed
-				end
-
-				lv.VectorVelocity = lv.VectorVelocity:Lerp(desiredVel, 0.18)
-
-				local att1 = hrp:FindFirstChild("SmoothFlyAlignTarget")
-				if att1 then att1.WorldPosition = targetPos end
-			end)
-			task.wait(0.05)
-		end
-
-		local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			clearFlyControl(hrp)
-		end
-	end)
-end
-
-local function StopHover()
-	stopHover = true
-	if currentHoverThread then
-		task.wait(0.06)
-	end
-	currentHoverThread = nil
-end
-
-------------------------------------------------
--- ⚔️ CÁC HÀM PHỤ (an toàn) — **không dùng VirtualUser**
-------------------------------------------------
-function EquipWeapon(weapon)
-	local player = game.Players.LocalPlayer
-	if not player or not player.Character then return end
-	local tool = player.Backpack:FindFirstChild(weapon) or player.Character:FindFirstChild(weapon)
-	if tool and player.Character:FindFirstChildOfClass("Humanoid") then
-		pcall(function() player.Character.Humanoid:EquipTool(tool) end)
-	end
-end
-
-function AutoHaki()
-	local player = game.Players.LocalPlayer
-	if not player or not player.Character then return end
-	pcall(function()
-		if not player.Character:FindFirstChild("HasBuso") then
-			game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Buso")
-		end
-	end)
-end
-
--- Thay thế AttackNoCD: hàm tấn công an toàn
-function DoAttack()
-	local player = game.Players.LocalPlayer
-	if not player or not player.Character then return end
-
-	-- 1) Thử gọi server nếu server có API "Attack"
-	pcall(function()
-		local rs = game:GetService("ReplicatedStorage")
-		if rs:FindFirstChild("Remotes") and rs.Remotes:FindFirstChild("CommF_") then
-			-- Nhiều server có cách khác nhau; thử gọi chung nhất có thể
-			pcall(function()
-				-- nếu tool tồn tại, gửi tool name; nếu không, vẫn thử
-				local tool = player.Character:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChild(_G.SelectWeapon)
-				if tool then
-					rs.Remotes.CommF_:InvokeServer("Attack", tool.Name)
-				else
-					rs.Remotes.CommF_:InvokeServer("Attack")
-				end
-			end)
-		end
-	end)
-
-	-- 2) Nếu server không hỗ trợ, thử Activate tool client-side
-	pcall(function()
-		local tool = player.Character:FindFirstChildOfClass("Tool") or player.Backpack:FindFirstChild(_G.SelectWeapon)
-		if tool then
-			if tool:FindFirstChild("Activate") and type(tool.Activate) == "function" then
-				-- some tools provide Activate method
-				pcall(function() tool:Activate() end)
-			else
-				-- fallback: fire server event if exists (safe no crash)
-				-- do nothing else if not available
-			end
-		end
-	end)
-end
-
-------------------------------------------------
--- 🔘 NÚT AUTO FARM (bật/tắt noclip + fly)
-------------------------------------------------
+-- 🧠 AUTO FARM CHÍNH
 TabFarm:AddToggle({
 	Name = "Tự Động Cày Cấp",
 	Default = false,
-	Callback = function(Value)
-		_G.AutoFarm = Value
-		if Value then
+	Callback = function(v)
+		_G.AutoFarm = v
+		if v then
+			CheckQuest()
 			EnableNoclip(true)
 		else
-			EnableNoclip(false)
-			StopHover()
 			StopFlying()
+			EnableNoclip(false)
 		end
 	end
 })
 
-------------------------------------------------
--- 🌾 AUTO FARM CHÍNH (currentTarget logic giữ nguyên)
-------------------------------------------------
-local currentTarget = nil
-
 task.spawn(function()
-	while task.wait(0.12) do
+	while task.wait(0.15) do
 		pcall(function()
-			-- nếu AutoFarm chưa bật: dọn dẹp trạng thái và chờ
-			if not _G.AutoFarm then
-				StopHover()
-				StopFlying()
-				currentTarget = nil
-			else
-				-- AutoFarm bật, đảm bảo noclip
-				EnableNoclip(true)
+			if not _G.AutoFarm then return end
+			CheckQuest()
+			local plr = game.Players.LocalPlayer
+			local char = plr.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if not hrp then return end
 
-				CheckQuest()
+			local questUI = plr.PlayerGui.Main.Quest
+			local hasQuest = questUI and questUI.Visible
+			local questTitle = hasQuest and questUI.Container.QuestTitle.Title.Text or ""
 
-				local player = game.Players.LocalPlayer
-				if not player or not player.Character then
+			-- 🟢 QUEST MODE
+			if _G.FarmMode == "Quest" then
+				if not hasQuest or (NameMon and not string.find(questTitle, NameMon)) then
+					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest")
 					task.wait(0.3)
+					FlyTo(CFrameQuest)
+					task.wait(0.7)
+					game.ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, LevelQuest)
 					return
 				end
-				local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-				if not hrp then task.wait(0.3) return end
+			end
 
-				local questUI = player.PlayerGui and player.PlayerGui.Main and player.PlayerGui.Main.Quest
-				local hasQuest = questUI and questUI.Visible
-				local questTitle = hasQuest and questUI.Container.QuestTitle.Title.Text or ""
-
-				-- nếu không có quest hoặc sai quest -> nhận quest
-				if not hasQuest or not string.find(questTitle or "", NameMon or "") then
-					pcall(function() game.ReplicatedStorage.Remotes.CommF_:InvokeServer("AbandonQuest") end)
-					FlyTo(CFrameQuest + Vector3.new(0, 10, 0))
-					task.wait(0.15)
-					pcall(function() game.ReplicatedStorage.Remotes.CommF_:InvokeServer("StartQuest", NameQuest, LevelQuest) end)
-					currentTarget = nil
-					StopHover()
-					task.wait(0.6)
-				else
-					-- tìm mob theo contains (ví dụ "Bandit [Lv.35]")
-					local found = nil
-					local enemyFolder = workspace:FindFirstChild("Enemies")
-					if enemyFolder then
-						for _, v in pairs(enemyFolder:GetChildren()) do
-							if v and v.Name and (string.find(string.lower(v.Name), string.lower(Mon or ""))) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-								found = v
-								break
-							end
-						end
-					end
-
-					if found then
-						-- nếu mục tiêu mới khác currentTarget -> approach 1 lần
-						if currentTarget ~= found then
-							currentTarget = found
-							StopHover()
-							local ok, err = pcall(function()
-								local approachCFrame = CFrame.new(found.HumanoidRootPart.Position + Vector3.new(0, hoverOffset + 2, 0))
-								FlyTo(approachCFrame)
-								if found and found:FindFirstChild("HumanoidRootPart") then
-									StartHoverOverPart(found.HumanoidRootPart)
-								end
-							end)
-							if not ok then
-								currentTarget = nil
-								StopHover()
-							end
-						end
-
-						-- attack on currentTarget using DoAttack (safe)
-						if currentTarget and currentTarget.Parent and currentTarget:FindFirstChild("Humanoid") and currentTarget.Humanoid.Health > 0 then
-							EquipWeapon(_G.SelectWeapon)
-							AutoHaki()
-							pcall(function()
-								if currentTarget:FindFirstChild("HumanoidRootPart") then currentTarget.HumanoidRootPart.CanCollide = false end
-								if currentTarget:FindFirstChild("Head") then currentTarget.Head.CanCollide = false end
-								if currentTarget:FindFirstChild("Humanoid") then currentTarget.Humanoid.WalkSpeed = 0 end
-							end)
-							-- gọi DoAttack thay cho AttackNoCD
-							DoAttack()
-						else
-							currentTarget = nil
-							StopHover()
-						end
-					else
-						-- không thấy quái: bay tới spawn point và reset
-						currentTarget = nil
-						StopHover()
-						if CFrameMon then
-							FlyTo(CFrameMon + Vector3.new(0, 15, 0))
-						else
-							task.wait(0.4)
+			-- 🟡 TÌM QUÁI
+			local EnemyFolder = workspace.Enemies
+			local Enemy = nil
+			if _G.FarmMode == "Nearest" then
+				local shortest = math.huge
+				for _,v in pairs(EnemyFolder:GetChildren()) do
+					if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+						local dist = (v.HumanoidRootPart.Position - hrp.Position).Magnitude
+						if dist < shortest then
+							shortest = dist
+							Enemy = v
 						end
 					end
 				end
+			else
+				for _,v in pairs(EnemyFolder:GetChildren()) do
+					if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+						if string.find(v.Name, Mon) then
+							Enemy = v
+							break
+						end
+					end
+				end
+			end
+
+			if Enemy then
+				FlyTo(CFrame.new(Enemy.HumanoidRootPart.Position + Vector3.new(0,10,0)))
+				EquipWeapon(_G.SelectWeapon)
+				AutoHaki()
+				DoAttack()
+			elseif _G.FarmMode ~= "Nearest" then
+				FlyTo(CFrameMon)
 			end
 		end)
 	end
@@ -1170,6 +983,64 @@ TabItem:AddToggle({
                     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
                 end)
                 wait(1) -- thêm delay nhẹ để tránh spam quá nhanh
+            end
+        end)
+    end
+})
+
+
+
+local Section = TabItem:AddSection({"Nhà Máy"})
+
+TabItem:AddToggle({
+    Name = "Đánh Nhà Máy",
+    Default = false,
+    Callback = function(Value)
+        _G.Factory = Value
+
+        spawn(function()
+            while task.wait() do
+                if _G.Factory then
+                    -- Nếu Core (Boss Nhà Máy) xuất hiện trong Workspace
+                    if game.Workspace.Enemies:FindFirstChild("Core") then
+                        for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
+                            if v.Name == "Core" and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+                                repeat
+                                    task.wait(_G.Fast_Delay)
+                                    AttackNoCoolDown()
+
+                                    -- Bay tới vị trí Nhà Máy
+                                    repeat
+                                        Tween(CFrame.new(448.46756, 199.356781, -441.389252))
+                                        task.wait()
+                                    until not _G.Factory or ((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Vector3.new(448.46756, 199.356781, -441.389252)).Magnitude <= 10)
+
+                                    -- Trang bị vũ khí + bật haki + đánh Core
+                                    EquipTool(SelectWeapon)
+                                    AutoHaki()
+                                    Tween(v.HumanoidRootPart.CFrame * Pos)
+
+                                    -- Chỉnh model Core cho dễ đánh
+                                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                                    v.HumanoidRootPart.Transparency = 1
+                                    v.Humanoid.JumpPower = 0
+                                    v.Humanoid.WalkSpeed = 0
+                                    v.HumanoidRootPart.CanCollide = false
+
+                                    FarmPos = v.HumanoidRootPart.CFrame
+                                    MonFarm = v.Name
+                                until not v.Parent or v.Humanoid.Health <= 0 or not _G.Factory
+                            end
+                        end
+
+                    -- Nếu Core chưa spawn → chờ ở vị trí Nhà Máy
+                    elseif game.ReplicatedStorage:FindFirstChild("Core") then
+                        repeat
+                            Tween(CFrame.new(448.46756, 199.356781, -441.389252))
+                            task.wait()
+                        until not _G.Factory or ((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Vector3.new(448.46756, 199.356781, -441.389252)).Magnitude <= 10)
+                    end
+                end
             end
         end)
     end
