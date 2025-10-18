@@ -958,59 +958,109 @@ end)
 
 
 
+------------------------------------------------
+-- 🏭 ĐÁNH NHÀ MÁY (TỰ BAY, NOCOLLIDE, HỒI SAU CHẾT)
+------------------------------------------------
+do
 TabFarm:AddToggle({
     Name = "Đánh Nhà Máy",
     Default = false,
     Callback = function(Value)
         _G.Factory = Value
 
-        spawn(function()
-            while task.wait() do
-                if _G.Factory then
-                    -- Nếu Core (Boss Nhà Máy) xuất hiện trong Workspace
-                    if game.Workspace.Enemies:FindFirstChild("Core") then
-                        for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
-                            if v.Name == "Core" and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                                repeat
-                                    task.wait(_G.Fast_Delay)
-                                    AttackNoCoolDown()
+        -- Kích hoạt noclip khi bật
+        EnableNoclip(Value)
 
-                                    -- Bay tới vị trí Nhà Máy
-                                    repeat
-                                        Tween(CFrame.new(448.46756, 199.356781, -441.389252))
-                                        task.wait()
-                                    until not _G.Factory or ((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Vector3.new(448.46756, 199.356781, -441.389252)).Magnitude <= 10)
+        if Value then
+            task.spawn(function()
+                while _G.Factory do
+                    pcall(function()
+                        local EnemyFolder = workspace:FindFirstChild("Enemies")
+                        if not EnemyFolder then return end
 
-                                    -- Trang bị vũ khí + bật haki + đánh Core
-                                    EquipTool(SelectWeapon)
-                                    AutoHaki()
-                                    Tween(v.HumanoidRootPart.CFrame * Pos)
+                        local Core = EnemyFolder:FindFirstChild("Core")
+                        if Core and Core:FindFirstChild("HumanoidRootPart") then
+                            local plr = game.Players.LocalPlayer
+                            local char = plr.Character
+                            if not char then return end
+                            local hrp = char:FindFirstChild("HumanoidRootPart")
+                            if not hrp then return end
 
-                                    -- Chỉnh model Core cho dễ đánh
-                                    v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                                    v.HumanoidRootPart.Transparency = 1
-                                    v.Humanoid.JumpPower = 0
-                                    v.Humanoid.WalkSpeed = 0
-                                    v.HumanoidRootPart.CanCollide = false
+                            local bv, bg = EnsureFlySystem()
+                            if not bv or not bg then return end
 
-                                    FarmPos = v.HumanoidRootPart.CFrame
-                                    MonFarm = v.Name
-                                until not v.Parent or v.Humanoid.Health <= 0 or not _G.Factory
-                            end
+                            flyspeed = 300
+                            local target = Core.HumanoidRootPart
+
+                            -- Bay đến Core cho đến khi đến gần hoặc tắt
+                            repeat
+                                if not _G.Factory then break end
+                                if not Core or not Core.Parent then break end
+                                if not target or not target.Parent then break end
+
+                                local pos = target.Position + Vector3.new(0, 10, 0)
+                                local dir = (pos - hrp.Position)
+                                if dir.Magnitude <= 6 then
+                                    bv.Velocity = Vector3.zero
+                                else
+                                    bv.Velocity = dir.Unit * flyspeed
+                                    bg.CFrame = CFrame.new(hrp.Position, pos)
+                                end
+                                task.wait()
+                            until (hrp.Position - target.Position).Magnitude <= 6 or not _G.Factory
+
+                            bv.Velocity = Vector3.zero
                         end
-
-                    -- Nếu Core chưa spawn → chờ ở vị trí Nhà Máy
-                    elseif game.ReplicatedStorage:FindFirstChild("Core") then
-                        repeat
-                            Tween(CFrame.new(448.46756, 199.356781, -441.389252))
-                            task.wait()
-                        until not _G.Factory or ((game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Vector3.new(448.46756, 199.356781, -441.389252)).Magnitude <= 10)
-                    end
+                    end)
+                    task.wait(0.5)
                 end
-            end
-        end)
+
+                StopFlying()
+                EnableNoclip(false)
+            end)
+        else
+            StopFlying()
+            EnableNoclip(false)
+        end
     end
 })
+
+------------------------------------------------
+-- 🔁 HỒI LẠI KHI NHÂN VẬT CHẾT HOẶC BIẾN ĐỔI
+------------------------------------------------
+local plr = game.Players.LocalPlayer
+plr.CharacterAdded:Connect(function(char)
+    task.spawn(function()
+        repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
+
+        -- Nếu đang bật Đánh Nhà Máy thì tự bật lại
+        if _G.Factory then
+            task.wait(1)
+            EnableNoclip(true)
+            task.spawn(function()
+                while _G.Factory do
+                    pcall(function()
+                        local EnemyFolder = workspace:FindFirstChild("Enemies")
+                        if not EnemyFolder then return end
+                        local Core = EnemyFolder:FindFirstChild("Core")
+                        if Core and Core:FindFirstChild("HumanoidRootPart") then
+                            local hrp = char:FindFirstChild("HumanoidRootPart")
+                            if not hrp then return end
+                            local bv, bg = EnsureFlySystem()
+                            flyspeed = 300
+                            local pos = Core.HumanoidRootPart.Position + Vector3.new(0, 10, 0)
+                            local dir = (pos - hrp.Position)
+                            bv.Velocity = dir.Unit * flyspeed
+                            bg.CFrame = CFrame.new(hrp.Position, pos)
+                        end
+                    end)
+                    task.wait(0.5)
+                end
+            end)
+        end
+    end)
+end)
+end
 
 
 -- Phần TabServer
@@ -1163,6 +1213,7 @@ TabServer:AddButton({
 
 local Section = TabServer:AddSection({"Tìm/Đổi Máy Chủ"})
 
+do
 -- 🌕 FIND FULL MOON (Toggle kiểu ESP Player)
 TabServer:AddToggle({
     Name = "Tự Tìm Trăng Tròn",
@@ -1193,11 +1244,12 @@ TabServer:AddToggle({
         end
     end
 })
-
+end
 
 
 
 -- 🌫️ FIND MIRAGE ISLAND + BODY GYRO + NOCLIP
+do
 TabServer:AddToggle({
     Name = "Tự Tìm Đảo Kì Bí",
     Default = false,
@@ -1278,6 +1330,7 @@ TabServer:AddToggle({
         end
     end
 })
+end
 
 -- Phần TabFish
 
