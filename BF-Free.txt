@@ -684,12 +684,14 @@ function CheckQuest()
 	end;
 end;
 
+------------------------------------------------
 -- ⚔️ VŨ KHÍ
+------------------------------------------------
 local WeaponList = {"Melee", "Sword", "Fruit", "Gun"}
 _G.SelectWeapon = _G.SelectWeapon or "Melee"
 
 TabFarm:AddDropdown({
-	Name = "Chọn Vũ Khí",
+	Name = "Select Weapon",
 	Options = WeaponList,
 	Default = _G.SelectWeapon,
 	Callback = function(Value)
@@ -697,10 +699,24 @@ TabFarm:AddDropdown({
 	end
 })
 
--- 🌈 CHỌN CHẾ ĐỘ FARM
+task.spawn(function()
+	while task.wait(1) do
+		pcall(function()
+			for _, v in pairs(game.Players.LocalPlayer.Backpack:GetChildren()) do
+				if v:IsA("Tool") and v.ToolTip == _G.SelectWeapon then
+					_G.SelectWeapon = v.Name
+				end
+			end
+		end)
+	end
+end)
+
+------------------------------------------------
+-- 🌈 MODE FARM
+------------------------------------------------
 local ModeList = {"Quest", "Normal", "Nearest"}
 TabFarm:AddDropdown({
-	Name = "Chọn Chế Độ Cày",
+	Name = "Select Farm Mode",
 	Options = ModeList,
 	Default = _G.FarmMode,
 	Callback = function(Value)
@@ -708,12 +724,20 @@ TabFarm:AddDropdown({
 	end
 })
 
--- 🪶 BAY MƯỢT – FIX FULL GIẬT & VĂNG
+------------------------------------------------
+-- 💨 BAY ỔN ĐỊNH – MƯỢT, KHÔNG GIẬT
+------------------------------------------------
 local flying = false
 local flyspeed = 300
+local lastTargetCF = nil
+local flyThread = nil
 
 function StopFlying()
 	flying = false
+	if flyThread then
+		task.cancel(flyThread)
+		flyThread = nil
+	end
 	local char = game.Players.LocalPlayer.Character
 	if char and char:FindFirstChild("HumanoidRootPart") then
 		for _,v in pairs(char.HumanoidRootPart:GetChildren()) do
@@ -722,40 +746,71 @@ function StopFlying()
 	end
 end
 
-function FlyTo(cf)
-	local player = game.Players.LocalPlayer
-	local char = player.Character
-	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+function EnsureFlySystem()
+	local char = game.Players.LocalPlayer.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
 	local hrp = char.HumanoidRootPart
-	StopFlying()
+
+	local bv = hrp:FindFirstChild("FarmVelocity") or Instance.new("BodyVelocity")
+	bv.Name = "FarmVelocity"
+	bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+	bv.P = 1e4
+	bv.Parent = hrp
+
+	local bg = hrp:FindFirstChild("FarmGyro") or Instance.new("BodyGyro")
+	bg.Name = "FarmGyro"
+	bg.MaxTorque = Vector3.new(1e5,1e5,1e5)
+	bg.P = 1e4
+	bg.Parent = hrp
+
+	return bv, bg
+end
+
+function FlyTo(cf)
+	if not cf or not _G.AutoFarm then return end
+	lastTargetCF = cf
 	flying = true
 
-	local bv = Instance.new("BodyVelocity", hrp)
-	bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-	bv.P = 1e4
+	if flyThread then
+		task.cancel(flyThread)
+	end
 
-	local bg = Instance.new("BodyGyro", hrp)
-	bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-	bg.P = 1e4
+	flyThread = task.spawn(function()
+		while flying and _G.AutoFarm and task.wait() do
+			local player = game.Players.LocalPlayer
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if not hrp then continue end
 
-	task.spawn(function()
-		while flying and task.wait() do
-			if not hrp or not hrp.Parent then break end
+			local bv, bg = EnsureFlySystem()
+			if not bv or not bg then continue end
+
 			local pos = cf.Position + Vector3.new(0,10,0)
 			local dir = (pos - hrp.Position)
 			if dir.Magnitude < 2 then
 				bv.Velocity = Vector3.zero
-				break
 			else
 				bv.Velocity = dir.Unit * flyspeed
 				bg.CFrame = CFrame.new(hrp.Position, pos)
 			end
 		end
-		StopFlying()
 	end)
 end
 
+-- 🧩 TỰ HỒI BAY KHI NHÂN VẬT RESET / TRANSFORM
+game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
+	task.spawn(function()
+		repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
+		if _G.AutoFarm and lastTargetCF then
+			task.wait(0.5)
+			FlyTo(lastTargetCF)
+		end
+	end)
+end)
+
+------------------------------------------------
 -- ⚔️ HỖ TRỢ
+------------------------------------------------
 function AutoHaki()
 	pcall(function()
 		if not game.Players.LocalPlayer.Character:FindFirstChild("HasBuso") then
@@ -779,20 +834,9 @@ function DoAttack()
 	end)
 end
 
--- ⚰️ KHÔNG DỪNG KHI CHẾT
-local plr = game.Players.LocalPlayer
-plr.CharacterAdded:Connect(function(char)
-	task.spawn(function()
-		repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
-		if _G.AutoFarm then
-			task.wait(1)
-			CheckQuest()
-			print("✅ Hồi sinh - tiếp tục farm")
-		end
-	end)
-end)
-
+------------------------------------------------
 -- 🚫 NOCLIP
+------------------------------------------------
 local noclip
 function EnableNoclip(v)
 	local plr = game.Players.LocalPlayer
@@ -810,9 +854,26 @@ function EnableNoclip(v)
 	end
 end
 
+------------------------------------------------
+-- ⚰️ KHÔNG DỪNG KHI CHẾT
+------------------------------------------------
+local plr = game.Players.LocalPlayer
+plr.CharacterAdded:Connect(function(char)
+	task.spawn(function()
+		repeat task.wait() until char:FindFirstChild("HumanoidRootPart")
+		if _G.AutoFarm then
+			task.wait(1)
+			CheckQuest()
+			if lastTargetCF then FlyTo(lastTargetCF) end
+		end
+	end)
+end)
+
+------------------------------------------------
 -- 🧠 AUTO FARM CHÍNH
+------------------------------------------------
 TabFarm:AddToggle({
-	Name = "Tự Động Cày Cấp",
+	Name = "Start Auto Farm",
 	Default = false,
 	Callback = function(v)
 		_G.AutoFarm = v
@@ -831,12 +892,13 @@ task.spawn(function()
 		pcall(function()
 			if not _G.AutoFarm then return end
 			CheckQuest()
+
 			local plr = game.Players.LocalPlayer
 			local char = plr.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			if not hrp then return end
 
-			local questUI = plr.PlayerGui.Main.Quest
+			local questUI = plr.PlayerGui and plr.PlayerGui.Main and plr.PlayerGui.Main.Quest
 			local hasQuest = questUI and questUI.Visible
 			local questTitle = hasQuest and questUI.Container.QuestTitle.Title.Text or ""
 
@@ -853,36 +915,40 @@ task.spawn(function()
 			end
 
 			-- 🟡 TÌM QUÁI
-			local EnemyFolder = workspace.Enemies
+			local EnemyFolder = workspace:FindFirstChild("Enemies")
 			local Enemy = nil
-			if _G.FarmMode == "Nearest" then
-				local shortest = math.huge
-				for _,v in pairs(EnemyFolder:GetChildren()) do
-					if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-						local dist = (v.HumanoidRootPart.Position - hrp.Position).Magnitude
-						if dist < shortest then
-							shortest = dist
-							Enemy = v
+			if EnemyFolder then
+				if _G.FarmMode == "Nearest" then
+					local shortest = math.huge
+					for _,v in pairs(EnemyFolder:GetChildren()) do
+						if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+							local dist = (v.HumanoidRootPart.Position - hrp.Position).Magnitude
+							if dist < shortest then
+								shortest = dist
+								Enemy = v
+							end
 						end
 					end
-				end
-			else
-				for _,v in pairs(EnemyFolder:GetChildren()) do
-					if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-						if string.find(v.Name, Mon) then
-							Enemy = v
-							break
+				else
+					for _,v in pairs(EnemyFolder:GetChildren()) do
+						if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+							if string.find(string.lower(v.Name), string.lower(Mon or "")) then
+								Enemy = v
+								break
+							end
 						end
 					end
 				end
 			end
 
+			-- 🧭 XỬ LÝ BAY + ĐÁNH
 			if Enemy then
-				FlyTo(CFrame.new(Enemy.HumanoidRootPart.Position + Vector3.new(0,10,0)))
+				FlyTo(CFrame.new(Enemy.HumanoidRootPart.Position))
 				EquipWeapon(_G.SelectWeapon)
 				AutoHaki()
 				DoAttack()
-			elseif _G.FarmMode ~= "Nearest" then
+			elseif CFrameMon then
+				-- 💤 KHÔNG CÓ QUÁI: BAY LƠ LỬNG NGHỈ
 				FlyTo(CFrameMon)
 			end
 		end)
