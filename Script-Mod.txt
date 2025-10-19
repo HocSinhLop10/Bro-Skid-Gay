@@ -1063,6 +1063,363 @@ end)
 end
 
 
+
+
+-- Phần TabFish
+
+local Section = TabFish:AddSection({"Câu Cá"})
+
+-- 🧩 DROPDOWN
+TabFish:AddDropdown({
+    Name = "Chọn Cần Câu",
+    Options = {"Fishing Rod", "Gold Rod", "Shark Rod", "Shell Rod", "Treasure Rod"},
+    Default = "Fishing Rod",
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+
+-- 🧩 DROPDOWN
+TabFish:AddDropdown({
+    Name = "Chọn Mồi Câu",
+    Options = {"Basic Bait", "Kelp Bait", "Good Bait", "Abyssal Bait", "Fozen Bait", "Epic Bait", "Carnivore Bait"},
+    Default = "Basic Bait",
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+
+-- 🧩 TOGGLE
+TabFish:AddToggle({
+    Name = "Tự Động Câu Cá",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+
+
+-- Phần TabItem
+
+local Section = TabItem:AddSection({"Tộc"})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Tộc Máy",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+local Section = TabItem:AddSection({"Môn Võ"})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Võ Cá Mập",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Võ Vuốt Điện",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Võ Vuốt Rồng",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Võ Thần Diệt Quyền",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Võ Huyết Quỷ Thuật",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+local Section = TabItem:AddSection({"Vũ Khí"})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Kiếm Saw",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Kiếm Saber",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Bisento V2",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Kiếm Warden",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+
+
+TabItem:AddToggle({
+    Name = "Mua Kiếm Huyền Thoại",
+    Default = false,
+    Callback = function(Value)
+        _G.AutoBuyLegendarySword = Value
+
+        -- Vòng lặp thực thi riêng biệt
+        spawn(function()
+            while _G.AutoBuyLegendarySword do
+                pcall(function()
+                    local args = {
+                        [1] = "LegendarySwordDealer",
+                        [2] = "1"
+                    }
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+
+                    args = {
+                        [1] = "LegendarySwordDealer",
+                        [2] = "2"
+                    }
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+
+                    args = {
+                        [1] = "LegendarySwordDealer",
+                        [2] = "3"
+                    }
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+                end)
+                wait(1) -- thêm delay nhẹ để tránh spam quá nhanh
+            end
+        end)
+    end
+})
+
+local Section = TabItem:AddSection({"Phụ Kiện"})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Áo Choàng Marine",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+-- 🧩 TOGGLE
+TabItem:AddToggle({
+    Name = "Tự Lấy Mũ Usoap's",
+    Default = false,
+    Callback = function(Value)
+        -- Chưa có chức năng
+    end
+})
+
+
+-- Phần Fruit
+
+
+
+local Section = TabFruit:AddSection({"Raid Law"})
+
+-- 🌀 HÀM BAY (Tween tốc độ 300)
+function Tween(CF)
+    local plr = game:GetService("Players").LocalPlayer
+    local char = plr.Character or plr.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    local tweenService = game:GetService("TweenService")
+    local distance = (hrp.Position - CF.Position).Magnitude
+    local speed = 300
+    local time = distance / speed
+
+    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
+    local tween = tweenService:Create(hrp, tweenInfo, { CFrame = CF })
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+
+-- ⚙️ BODY GYRO + NOCLIP (hỗ trợ nhiều auto)
+spawn(function()
+	while task.wait() do
+		pcall(function()
+			local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if not hrp then return end
+
+			-- ✅ Danh sách các auto đang kích hoạt (rút gọn + tối ưu)
+			local active =
+				_G.TeleportIsland or _G.SailBoat or _G.Auto_Holy_Torch or _G.FindMirageIsland or
+				_G.TeleportPly or _G.Tweenfruit or _G.AutoFishCrew or _G.AutoShark or
+				_G.AutoCakeV2 or _G.AutoMysticIsland or _G.AutoQuestRace or _G.AutoBuyBoat or
+				_G.dao or _G.AutoMirage or Auto_Law or _G.AutoAllBoss or _G.AutoSeaBeast or
+				_G.BossRaid or _G.GrabChest or _G.AutoLevel or _G.AutoBone or _G.Factory or
+				_G.AutoElite or _G.AutoKenHop
+
+			if active then
+				if not hrp:FindFirstChild("BodyClip") then
+					local clip = Instance.new("BodyVelocity")
+					clip.Name = "BodyClip"
+					clip.MaxForce = Vector3.new(100000,100000,100000)
+					clip.Velocity = Vector3.new(0,0,0)
+					clip.Parent = hrp
+				end
+			else
+				if hrp:FindFirstChild("BodyClip") then
+					hrp:FindFirstChild("BodyClip"):Destroy()
+				end
+			end
+		end)
+	end
+end)
+
+-- ❌ NOCLIP
+spawn(function()
+	pcall(function()
+		game:GetService("RunService").Stepped:Connect(function()
+			local char = game.Players.LocalPlayer.Character
+			if not char then return end
+			if _G.TeleportIsland or _G.SailBoat or _G.Auto_Holy_Torch or _G.FindMirageIsland or _G.TeleportPly or Auto_Law then
+				for _, v in pairs(char:GetDescendants()) do
+					if v:IsA("BasePart") then
+						v.CanCollide = false
+					end
+				end
+			end
+		end)
+	end)
+end)
+
+
+-- ⚔️ AUTO LAW RAID
+TabFruit:AddToggle({
+    Name = "Tự Đánh Law",
+    Default = false,
+    Callback = function(Value)
+        _G.Auto_Law = Value
+
+        if Value then
+            -- 🔁 Auto mua Microchip
+            task.spawn(function()
+                pcall(function()
+                    while _G.Auto_Law and task.wait(0.3) do
+                        local plr = game:GetService("Players").LocalPlayer
+                        local char = plr.Character or plr.CharacterAdded:Wait()
+
+                        local hasChip =
+                            char:FindFirstChild("Microchip") or
+                            plr.Backpack:FindFirstChild("Microchip")
+
+                        local hasOrder =
+                            workspace.Enemies:FindFirstChild("Order") or
+                            game.ReplicatedStorage:FindFirstChild("Order")
+
+                        if not hasChip and not hasOrder then
+                            local args = { "BlackbeardReward", "Microchip", "1" }
+                            game.ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
+                            local args2 = { "BlackbeardReward", "Microchip", "2" }
+                            game.ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
+                        end
+                    end
+                end)
+            end)
+
+            -- ⚔️ Auto Summon + Kill Boss Law
+            task.spawn(function()
+                pcall(function()
+                    while _G.Auto_Law and task.wait(0.4) do
+                        local plr = game:GetService("Players").LocalPlayer
+                        local char = plr.Character
+                        local hasChip =
+                            char:FindFirstChild("Microchip") or
+                            plr.Backpack:FindFirstChild("Microchip")
+
+                        local hasOrderRep = game.ReplicatedStorage:FindFirstChild("Order")
+                        local hasOrderWork = workspace.Enemies:FindFirstChild("Order")
+
+                        -- Summon nếu có chip mà chưa spawn boss
+                        if not hasOrderWork and not hasOrderRep and hasChip then
+                            fireclickdetector(workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector)
+                        end
+
+                        -- Đã có boss thì bay đến đánh
+                        if hasOrderRep or hasOrderWork then
+                            if hasOrderWork then
+                                for _, v in pairs(workspace.Enemies:GetChildren()) do
+                                    if v.Name == "Order" and v:FindFirstChild("HumanoidRootPart") then
+                                        repeat task.wait(_G.Fast_Delay)
+                                            pcall(function()
+                                                AutoHaki()
+                                                EquipTool(SelectWeapon)
+                                                Tween(v.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0)) -- bay trên boss
+                                                v.HumanoidRootPart.CanCollide = false
+                                                v.HumanoidRootPart.Size = Vector3.new(120, 120, 120)
+                                                AttackNoCD()
+                                            end)
+                                        until not v.Parent or v.Humanoid.Health <= 0 or not _G.Auto_Law
+                                    end
+                                end
+                            elseif hasOrderRep then
+                                Tween(CFrame.new(-6217.2021, 28.0476, -5053.1357)) -- bay đến nút summon
+                            end
+                        end
+                    end
+                end)
+            end)
+        end
+    end
+})
+
+
 -- Phần TabServer
 
 local Section = TabServer:AddSection({"Máy chủ Vip"})
@@ -1332,373 +1689,13 @@ TabServer:AddToggle({
 })
 end
 
--- Phần TabFish
 
-local Section = TabFish:AddSection({"Câu Cá"})
 
--- 🧩 DROPDOWN
-TabFish:AddDropdown({
-    Name = "Chọn Cần Câu",
-    Options = {"Fishing Rod", "Gold Rod", "Shark Rod", "Shell Rod", "Treasure Rod"},
-    Default = "Fishing Rod",
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
 
 
+local Section = TabStats:AddSection({"Thông Số"})
 
--- 🧩 DROPDOWN
-TabFish:AddDropdown({
-    Name = "Chọn Mồi Câu",
-    Options = {"Basic Bait", "Kelp Bait", "Good Bait", "Abyssal Bait", "Fozen Bait", "Epic Bait, "Carnivore Bait"},
-    Default = "Basic Bait",
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-
-
--- 🧩 TOGGLE
-TabFish:AddToggle({
-    Name = "Tự Động Câu Cá",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-
-
-
-
-
-
--- Phần TabItem
-
-local Section = TabItem:AddSection({"Tộc"})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Tộc Máy",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-local Section = TabItem:AddSection({"Môn Võ"})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Võ Cá Mập",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Võ Vuốt Điện",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Võ Vuốt Rồng",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Võ Thần Diệt Quyền",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Võ Huyết Quỷ Thuật",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-
-local Section = TabItem:AddSection({"Vũ Khí"})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Kiếm Saw",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Kiếm Saber",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Bisento V2",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Kiếm Warden",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-
-
-
-TabItem:AddToggle({
-    Name = "Mua Kiếm Huyền Thoại",
-    Default = false,
-    Callback = function(Value)
-        _G.AutoBuyLegendarySword = Value
-
-        -- Vòng lặp thực thi riêng biệt
-        spawn(function()
-            while _G.AutoBuyLegendarySword do
-                pcall(function()
-                    local args = {
-                        [1] = "LegendarySwordDealer",
-                        [2] = "1"
-                    }
-                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-
-                    args = {
-                        [1] = "LegendarySwordDealer",
-                        [2] = "2"
-                    }
-                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-
-                    args = {
-                        [1] = "LegendarySwordDealer",
-                        [2] = "3"
-                    }
-                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
-                end)
-                wait(1) -- thêm delay nhẹ để tránh spam quá nhanh
-            end
-        end)
-    end
-})
-
-local Section = TabItem:AddSection({"Phụ Kiện"})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Áo Choàng Marine",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
--- 🧩 TOGGLE
-TabItem:AddToggle({
-    Name = "Tự Lấy Mũ Usoap's",
-    Default = false,
-    Callback = function(Value)
-        -- Chưa có chức năng
-    end
-})
-
-
-
-
--- Phần Fruit
-
-
-
-local Section = TabFruit:AddSection({"Raid Law"})
-
--- 🌀 HÀM BAY (Tween tốc độ 300)
-function Tween(CF)
-    local plr = game:GetService("Players").LocalPlayer
-    local char = plr.Character or plr.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-
-    local tweenService = game:GetService("TweenService")
-    local distance = (hrp.Position - CF.Position).Magnitude
-    local speed = 300
-    local time = distance / speed
-
-    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
-    local tween = tweenService:Create(hrp, tweenInfo, { CFrame = CF })
-    tween:Play()
-    tween.Completed:Wait()
-end
-
-
--- ⚙️ BODY GYRO + NOCLIP (hỗ trợ nhiều auto)
-spawn(function()
-	while task.wait() do
-		pcall(function()
-			local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-			if not hrp then return end
-
-			-- ✅ Danh sách các auto đang kích hoạt (rút gọn + tối ưu)
-			local active =
-				_G.TeleportIsland or _G.SailBoat or _G.Auto_Holy_Torch or _G.FindMirageIsland or
-				_G.TeleportPly or _G.Tweenfruit or _G.AutoFishCrew or _G.AutoShark or
-				_G.AutoCakeV2 or _G.AutoMysticIsland or _G.AutoQuestRace or _G.AutoBuyBoat or
-				_G.dao or _G.AutoMirage or Auto_Law or _G.AutoAllBoss or _G.AutoSeaBeast or
-				_G.BossRaid or _G.GrabChest or _G.AutoLevel or _G.AutoBone or _G.Factory or
-				_G.AutoElite or _G.AutoKenHop
-
-			if active then
-				if not hrp:FindFirstChild("BodyClip") then
-					local clip = Instance.new("BodyVelocity")
-					clip.Name = "BodyClip"
-					clip.MaxForce = Vector3.new(100000,100000,100000)
-					clip.Velocity = Vector3.new(0,0,0)
-					clip.Parent = hrp
-				end
-			else
-				if hrp:FindFirstChild("BodyClip") then
-					hrp:FindFirstChild("BodyClip"):Destroy()
-				end
-			end
-		end)
-	end
-end)
-
--- ❌ NOCLIP
-spawn(function()
-	pcall(function()
-		game:GetService("RunService").Stepped:Connect(function()
-			local char = game.Players.LocalPlayer.Character
-			if not char then return end
-			if _G.TeleportIsland or _G.SailBoat or _G.Auto_Holy_Torch or _G.FindMirageIsland or _G.TeleportPly or Auto_Law then
-				for _, v in pairs(char:GetDescendants()) do
-					if v:IsA("BasePart") then
-						v.CanCollide = false
-					end
-				end
-			end
-		end)
-	end)
-end)
-
-
--- ⚔️ AUTO LAW RAID
-TabFruit:AddToggle({
-    Name = "Tự Đánh Law",
-    Default = false,
-    Callback = function(Value)
-        _G.Auto_Law = Value
-
-        if Value then
-            -- 🔁 Auto mua Microchip
-            task.spawn(function()
-                pcall(function()
-                    while _G.Auto_Law and task.wait(0.3) do
-                        local plr = game:GetService("Players").LocalPlayer
-                        local char = plr.Character or plr.CharacterAdded:Wait()
-
-                        local hasChip =
-                            char:FindFirstChild("Microchip") or
-                            plr.Backpack:FindFirstChild("Microchip")
-
-                        local hasOrder =
-                            workspace.Enemies:FindFirstChild("Order") or
-                            game.ReplicatedStorage:FindFirstChild("Order")
-
-                        if not hasChip and not hasOrder then
-                            local args = { "BlackbeardReward", "Microchip", "1" }
-                            game.ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args))
-                            local args2 = { "BlackbeardReward", "Microchip", "2" }
-                            game.ReplicatedStorage.Remotes.CommF_:InvokeServer(unpack(args2))
-                        end
-                    end
-                end)
-            end)
-
-            -- ⚔️ Auto Summon + Kill Boss Law
-            task.spawn(function()
-                pcall(function()
-                    while _G.Auto_Law and task.wait(0.4) do
-                        local plr = game:GetService("Players").LocalPlayer
-                        local char = plr.Character
-                        local hasChip =
-                            char:FindFirstChild("Microchip") or
-                            plr.Backpack:FindFirstChild("Microchip")
-
-                        local hasOrderRep = game.ReplicatedStorage:FindFirstChild("Order")
-                        local hasOrderWork = workspace.Enemies:FindFirstChild("Order")
-
-                        -- Summon nếu có chip mà chưa spawn boss
-                        if not hasOrderWork and not hasOrderRep and hasChip then
-                            fireclickdetector(workspace.Map.CircleIsland.RaidSummon.Button.Main.ClickDetector)
-                        end
-
-                        -- Đã có boss thì bay đến đánh
-                        if hasOrderRep or hasOrderWork then
-                            if hasOrderWork then
-                                for _, v in pairs(workspace.Enemies:GetChildren()) do
-                                    if v.Name == "Order" and v:FindFirstChild("HumanoidRootPart") then
-                                        repeat task.wait(_G.Fast_Delay)
-                                            pcall(function()
-                                                AutoHaki()
-                                                EquipTool(SelectWeapon)
-                                                Tween(v.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0)) -- bay trên boss
-                                                v.HumanoidRootPart.CanCollide = false
-                                                v.HumanoidRootPart.Size = Vector3.new(120, 120, 120)
-                                                AttackNoCD()
-                                            end)
-                                        until not v.Parent or v.Humanoid.Health <= 0 or not _G.Auto_Law
-                                    end
-                                end
-                            elseif hasOrderRep then
-                                Tween(CFrame.new(-6217.2021, 28.0476, -5053.1357)) -- bay đến nút summon
-                            end
-                        end
-                    end
-                end)
-            end)
-        end
-    end
-})
-
-
--- Phần Stats
-
-
-
-local Section = TabShop:AddSection({"Thông Số"})
-
-TabShop:AddButton({
+TabStats:AddButton({
     Name = "Hoàn Điểm Chỉ Số [ ƒ2,500 ]",
     Callback = function()
         local Replicated = game:GetService("ReplicatedStorage")
@@ -1707,7 +1704,7 @@ TabShop:AddButton({
     end
 })
 
-TabShop:AddButton({
+TabStats:AddButton({
     Name = "Đổi Tộc Ngẫu Nhiên [ ƒ3,000 ]",
     Callback = function()
         local Replicated = game:GetService("ReplicatedStorage")
@@ -1777,6 +1774,10 @@ TabStats:AddToggle({
         -- Chưa có chức năng
     end
 })
+
+
+
+
 
 
 
@@ -2132,6 +2133,7 @@ TabTeleport:AddToggle({
 		end
 	end
 })
+
 
 
 -- Phần TabVisual
@@ -2583,8 +2585,6 @@ TabVisual:AddToggle({
 
 
 
-
-
 ---------------------------------------------------------------------------------
 -- Phần Cửa Hàng
 ---------------------------------------------------------------------------------
@@ -2943,6 +2943,8 @@ TabShop:AddButton({
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyItem", "Tomoe Ring")
     end
 })
+
+
 
 
 ---------------------------------------------------------------------------------
@@ -3437,6 +3439,5 @@ TabSettings:AddToggle({
 		print(Value and "🔵 AimBot ON" or "🔴 AimBot OFF")
 	end
 })
-
 
 
