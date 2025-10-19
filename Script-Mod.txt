@@ -2429,23 +2429,276 @@ TabVisual:AddToggle({
     end
 })
 
--- 🧩 TOGGLE
+------------------------------------------------
+-- 🍇 ESP TRÁI CÂY (DEVIL + REAL FRUIT)
+------------------------------------------------
+
+-- 🧩 THÊM NÚT VÀO TAB ESP
 TabVisual:AddToggle({
-    Name = "Esp Fruits",
+    Name = "Esp Trái Ác Quỷ",
     Default = false,
     Callback = function(Value)
-        -- Chưa có chức năng
+        DevilFruitESP = Value
     end
 })
 
--- 🧩 TOGGLE
+TabVisual:AddToggle({
+    Name = "Esp Trái Thường",
+    Default = false,
+    Callback = function(Value)
+        RealFruitESP = Value
+    end
+})
+
+
+------------------------------------------------
+-- ⚙️ HÀM HỖ TRỢ
+------------------------------------------------
+local function round(n)
+    return math.floor(n + 0.5)
+end
+
+
+------------------------------------------------
+-- 🍈 ESP TRÁI ÁC QUỶ (Devil Fruit)
+------------------------------------------------
+function UpdateDevilChams()
+	for i, v in pairs(workspace:GetChildren()) do
+		pcall(function()
+			if DevilFruitESP and v:FindFirstChild("Handle") and string.find(v.Name, "Fruit") then
+				local handle = v.Handle
+				local espName = "NameEsp" .. Number
+				local player = game.Players.LocalPlayer
+				local head = player.Character and player.Character:FindFirstChild("Head")
+				if not head then return end
+
+				local dist = round((head.Position - handle.Position).Magnitude / 3)
+				local textDisplay = v.Name .. string.format(" [%dm]", dist)
+
+				if not handle:FindFirstChild(espName) then
+					local bill = Instance.new("BillboardGui", handle)
+					bill.Name = espName
+					bill.ExtentsOffset = Vector3.new(0, 1, 0)
+					bill.Size = UDim2.new(1, 200, 1, 30)
+					bill.AlwaysOnTop = true
+					bill.Adornee = handle
+
+					local name = Instance.new("TextLabel", bill)
+					name.Name = "TextLabel"
+					name.Font = Enum.Font.GothamBold
+					name.TextSize = 14
+					name.TextWrapped = true
+					name.Size = UDim2.new(1, 0, 1, 0)
+					name.TextYAlignment = Enum.TextYAlignment.Top
+					name.BackgroundTransparency = 1
+					name.TextStrokeTransparency = 0.5
+					name.TextColor3 = Color3.fromRGB(255, 255, 255)
+					name.Text = textDisplay
+				else
+					handle[espName].TextLabel.Text = textDisplay
+				end
+			elseif v:FindFirstChild("Handle") and v.Handle:FindFirstChild("NameEsp" .. Number) then
+				v.Handle["NameEsp" .. Number]:Destroy()
+			end
+		end)
+	end
+end
+
+
+------------------------------------------------
+-- 🍎 ESP TRÁI THẬT (Apple / Pineapple / Banana)
+------------------------------------------------
+function UpdateRealFruitChams()
+	local player = game.Players.LocalPlayer
+	local head = player.Character and player.Character:FindFirstChild("Head")
+	if not head then return end
+
+	local function AddFruitESP(spawner, color)
+		for _, v in pairs(spawner:GetChildren()) do
+			if v:IsA("Tool") and v:FindFirstChild("Handle") then
+				local handle = v.Handle
+				local espName = "NameEsp" .. Number
+
+				if RealFruitESP then
+					local dist = round((head.Position - handle.Position).Magnitude / 3)
+					local textDisplay = v.Name .. string.format(" [%dm]", dist)
+
+					if not handle:FindFirstChild(espName) then
+						local bill = Instance.new("BillboardGui", handle)
+						bill.Name = espName
+						bill.ExtentsOffset = Vector3.new(0, 1, 0)
+						bill.Size = UDim2.new(1, 200, 1, 30)
+						bill.AlwaysOnTop = true
+						bill.Adornee = handle
+
+						local name = Instance.new("TextLabel", bill)
+						name.Name = "TextLabel"
+						name.Font = Enum.Font.GothamBold
+						name.TextSize = 14
+						name.TextWrapped = true
+						name.Size = UDim2.new(1, 0, 1, 0)
+						name.TextYAlignment = Enum.TextYAlignment.Top
+						name.BackgroundTransparency = 1
+						name.TextStrokeTransparency = 0.5
+						name.TextColor3 = color
+						name.Text = textDisplay
+					else
+						handle[espName].TextLabel.Text = textDisplay
+					end
+				elseif handle:FindFirstChild(espName) then
+					handle[espName]:Destroy()
+				end
+			end
+		end
+	end
+
+	if workspace:FindFirstChild("AppleSpawner") then
+		AddFruitESP(workspace.AppleSpawner, Color3.fromRGB(255, 0, 0))
+	end
+	if workspace:FindFirstChild("PineappleSpawner") then
+		AddFruitESP(workspace.PineappleSpawner, Color3.fromRGB(255, 174, 0))
+	end
+	if workspace:FindFirstChild("BananaSpawner") then
+		AddFruitESP(workspace.BananaSpawner, Color3.fromRGB(255, 255, 0))
+	end
+end
+
+
+------------------------------------------------
+-- 🔁 CẬP NHẬT LIÊN TỤC
+------------------------------------------------
+spawn(function()
+	while task.wait(1) do
+		pcall(function()
+			UpdateDevilChams()
+			UpdateRealFruitChams()
+		end)
+	end
+end)
+
+
+
+-- 🌍 ESP ISLAND (Drawing-based, hiển thị Tên Đảo [xxxm])
 TabVisual:AddToggle({
     Name = "Esp Island",
     Default = false,
     Callback = function(Value)
-        -- Chưa có chức năng
+        local RunService = game:GetService("RunService")
+        local Camera = workspace.CurrentCamera
+        local Player = game.Players.LocalPlayer
+
+        IslandESP = Value
+        -- 🔁 Giữ bảng và connection bên ngoài để không reset mỗi lần bật/tắt
+        if not _G.IslandESP_Data then
+            _G.IslandESP_Data = {
+                drawings = {},
+                loop = nil
+            }
+        end
+
+        local drawingsESP = _G.IslandESP_Data.drawings
+        local espLoop = _G.IslandESP_Data.loop
+
+        -- 🌈 Cấu hình
+        local COLOR_ISLAND = Color3.fromRGB(7, 236, 240)
+        local TEXT_SIZE = 15
+        local TEXT_FONT = 2
+
+        -- 🧩 Tạo ESP cho đảo
+        local function createESP(obj)
+            if drawingsESP[obj] then return end
+            local text = Drawing.new("Text")
+            text.Size = TEXT_SIZE
+            text.Center = true
+            text.Outline = true
+            text.OutlineColor = Color3.fromRGB(10, 10, 10)
+            text.Visible = false
+            text.Color = COLOR_ISLAND
+            text.Font = TEXT_FONT
+            drawingsESP[obj] = {text = text, part = obj}
+        end
+
+        -- 🧹 Xoá ESP
+        local function removeESP(obj)
+            local data = drawingsESP[obj]
+            if data then
+                pcall(function()
+                    if data.text then data.text:Remove() end
+                end)
+                drawingsESP[obj] = nil
+            end
+        end
+
+        -- 🔍 Cập nhật danh sách đảo
+        local function updateIslandList()
+            local folder = workspace:FindFirstChild("_WorldOrigin")
+            local locations = folder and folder:FindFirstChild("Locations")
+            if not locations then return end
+
+            for _, island in pairs(locations:GetChildren()) do
+                if island.Name ~= "Sea" and not drawingsESP[island] then
+                    createESP(island)
+                end
+            end
+
+            for island in pairs(drawingsESP) do
+                if not island:IsDescendantOf(workspace) then
+                    removeESP(island)
+                end
+            end
+        end
+
+        -- 🚀 Bắt đầu ESP
+        local function startESP()
+            if _G.IslandESP_Data.loop then return end
+            _G.IslandESP_Data.loop = RunService.RenderStepped:Connect(function()
+                if not IslandESP then return end
+
+                updateIslandList()
+
+                for island, data in pairs(drawingsESP) do
+                    local part = data.part
+                    if part and part:IsDescendantOf(workspace) and Player.Character and Player.Character:FindFirstChild("Head") then
+                        local pos, onScreen = Camera:WorldToViewportPoint(part.Position + Vector3.new(0, 2, 0))
+                        if onScreen then
+                            local dist = (part.Position - Player.Character.Head.Position).Magnitude / 3
+                            data.text.Text = string.format("%s [%.0fm]", part.Name, dist)
+                            data.text.Position = Vector2.new(pos.X, pos.Y)
+                            data.text.Visible = true
+                        else
+                            data.text.Visible = false
+                        end
+                    else
+                        data.text.Visible = false
+                    end
+                end
+            end)
+        end
+
+        -- ⛔ Dừng ESP (ẩn và xoá toàn bộ)
+        local function stopESP()
+            if _G.IslandESP_Data.loop then
+                _G.IslandESP_Data.loop:Disconnect()
+                _G.IslandESP_Data.loop = nil
+            end
+            for _, data in pairs(drawingsESP) do
+                pcall(function()
+                    if data.text then data.text:Remove() end
+                end)
+            end
+            table.clear(drawingsESP)
+        end
+
+        -- ✅ Bật / Tắt
+        if Value then
+            startESP()
+        else
+            stopESP()
+        end
     end
 })
+
+
 
 -- 🌸 ESP FLOWER
 do
@@ -2584,6 +2837,200 @@ TabVisual:AddToggle({
 })
 
 
+
+------------------------------------------------
+-- 🌫️ ESP MIRAGE ISLAND [Fixed Version]
+------------------------------------------------
+
+local function round(n)
+	return math.floor(tonumber(n) + 0.5)
+end
+
+TabVisual:AddToggle({
+	Name = "Esp Đảo Kì Bí",
+	Default = false,
+	Callback = function(Value)
+		MirageIslandESP = Value
+
+		-- 🧩 Hàm cập nhật ESP
+        local function UpdateMirageESP()
+			local folder = workspace:FindFirstChild("_WorldOrigin")
+			local locations = folder and folder:FindFirstChild("Locations")
+			if not locations then return end
+
+			for _, v in pairs(locations:GetChildren()) do
+				pcall(function()
+					if MirageIslandESP and v.Name == "Mirage Island" then
+						local espName = "NameEsp"
+						local player = game.Players.LocalPlayer
+						local head = player.Character and player.Character:FindFirstChild("Head")
+						if not head then return end
+
+						local dist = round((head.Position - v.Position).Magnitude / 3)
+						local textDisplay = string.format("%s [%dm]", v.Name, dist)
+
+						-- 🧱 Tạo Billboard nếu chưa có
+						if not v:FindFirstChild(espName) then
+							local bill = Instance.new("BillboardGui", v)
+							bill.Name = espName
+							bill.ExtentsOffset = Vector3.new(0, 1, 0)
+							bill.Size = UDim2.new(1, 200, 1, 30)
+							bill.AlwaysOnTop = true
+							bill.Adornee = v
+
+							local name = Instance.new("TextLabel", bill)
+							name.Name = "TextLabel"
+							name.Font = Enum.Font.GothamBold
+							name.TextSize = 14
+							name.TextWrapped = true
+							name.Size = UDim2.new(1, 0, 1, 0)
+							name.TextYAlignment = Enum.TextYAlignment.Top
+							name.BackgroundTransparency = 1
+							name.TextStrokeTransparency = 0.5
+							name.TextColor3 = Color3.fromRGB(255, 255, 255)
+							name.Text = textDisplay
+						else
+							v[espName].TextLabel.Text = textDisplay
+						end
+					end
+				end)
+			end
+		end
+
+		-- 🧹 Hàm xoá toàn bộ Billboard khi tắt
+		local function ClearAllMirageESP()
+			local folder = workspace:FindFirstChild("_WorldOrigin")
+			local locations = folder and folder:FindFirstChild("Locations")
+			if not locations then return end
+			for _, v in pairs(locations:GetChildren()) do
+				pcall(function()
+					if v:FindFirstChild("NameEsp") then
+						v.NameEsp:Destroy()
+					end
+				end)
+			end
+		end
+
+		-- 🔁 Kiểm soát vòng lặp update
+		if not _G.MirageESP_Thread then
+			_G.MirageESP_Thread = nil
+		end
+
+		-- ✅ Bật ESP
+		if Value then
+			_G.MirageESP_Thread = task.spawn(function()
+				while MirageIslandESP do
+					UpdateMirageESP()
+					task.wait(0.5)
+				end
+			end)
+		else
+			-- ⛔ Tắt ESP và xoá sạch Billboard
+			MirageIslandESP = false
+			ClearAllMirageESP()
+		end
+	end
+})
+
+
+
+
+------------------------------------------------
+-- ⚙️ ESP GEAR (Mystic Island) [Fixed Version]
+------------------------------------------------
+
+-- 🧠 Hàm làm tròn số
+local function round(n)
+	return math.floor(tonumber(n) + 0.5)
+end
+
+-- ⚙️ Nút bật / tắt ESP Gear
+TabVisual:AddToggle({
+	Name = "Esp Bánh Răng",
+	Default = false,
+	Callback = function(Value)
+		GearESP = Value
+
+		-- 🔁 Giữ vòng lặp bên ngoài toggle
+		if not _G.GearESP_Connection then
+			_G.GearESP_Connection = nil
+		end
+
+		-- 🧩 Hàm cập nhật ESP
+		local function UpdateGearESP()
+			local mystic = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("MysticIsland")
+			if not mystic then return end
+
+			for _, v in pairs(mystic:GetChildren()) do
+				pcall(function()
+					if GearESP then
+						if v:IsA("MeshPart") then
+							local espName = "NameEsp"
+							local player = game.Players.LocalPlayer
+							local head = player.Character and player.Character:FindFirstChild("Head")
+							if not head then return end
+
+							local dist = round((head.Position - v.Position).Magnitude / 3)
+							local textDisplay = string.format("%s [%dm]", v.Name, dist)
+
+							-- 🧱 Tạo Billboard nếu chưa có
+							if not v:FindFirstChild(espName) then
+								local bill = Instance.new("BillboardGui", v)
+								bill.Name = espName
+								bill.ExtentsOffset = Vector3.new(0, 1, 0)
+								bill.Size = UDim2.new(1, 200, 1, 30)
+								bill.AlwaysOnTop = true
+								bill.Adornee = v
+
+								local name = Instance.new("TextLabel", bill)
+								name.Name = "TextLabel"
+								name.Font = Enum.Font.GothamBold
+								name.TextSize = 14
+								name.TextWrapped = true
+								name.Size = UDim2.new(1, 0, 1, 0)
+								name.TextYAlignment = Enum.TextYAlignment.Top
+								name.BackgroundTransparency = 1
+								name.TextStrokeTransparency = 0.5
+								name.TextColor3 = Color3.fromRGB(255, 255, 255)
+								name.Text = textDisplay
+							else
+								v[espName].TextLabel.Text = textDisplay
+							end
+						end
+					end
+				end)
+			end
+		end
+
+		-- 🧹 Hàm xóa toàn bộ Billboard
+		local function ClearAllESP()
+			local mystic = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("MysticIsland")
+			if not mystic then return end
+			for _, v in pairs(mystic:GetChildren()) do
+				pcall(function()
+					if v:FindFirstChild("NameEsp") then
+						v.NameEsp:Destroy()
+					end
+				end)
+			end
+		end
+
+		-- ✅ Bật ESP
+		if Value then
+			-- Tạo vòng lặp update mới
+			_G.GearESP_Connection = task.spawn(function()
+				while GearESP do
+					UpdateGearESP()
+					task.wait(0.5)
+				end
+			end)
+		else
+			-- ⛔ Tắt ESP + xóa Billboard
+			GearESP = false
+			ClearAllESP()
+		end
+	end
+})
 
 ---------------------------------------------------------------------------------
 -- Phần Cửa Hàng
